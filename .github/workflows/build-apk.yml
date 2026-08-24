@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 실제 Firebase 설정은 GitHub Secret(GOOGLE_SERVICES_JSON)에서 주입.
+      # 시크릿이 없으면 자리표시자로 빌드만 통과시킨다 (앱 통신은 안 됨).
+      - name: Prepare google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+            echo "Using real google-services.json from secret"
+          else
+            cp app/google-services.json.example app/google-services.json
+            echo "WARNING: using placeholder google-services.json (Firebase will not work)"
+          fi
+
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: morning-alarm-apk
+          path: app/build/outputs/apk/debug/app-debug.apk

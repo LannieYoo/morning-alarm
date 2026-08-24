@@ -1,0 +1,15 @@
+.gradle/
+build/
+*/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.kotlin/
+
+# 민감 정보 — 절대 커밋 금지
+app/google-services.json
+*.keystore
+*.jks
+keystore.properties
