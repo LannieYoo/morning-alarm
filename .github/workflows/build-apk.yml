@@ -6,6 +6,21 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    name: Kotlin lint (ktlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: cp app/google-services.json.example app/google-services.json
+      - name: ktlintCheck
+        run: |
+          chmod +x gradlew
+          ./gradlew ktlintCheck --no-daemon
+
   build:
     runs-on: ubuntu-latest
     steps:
