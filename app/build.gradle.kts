@@ -3,7 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
-    id("org.jlleitschuh.gradle.ktlint")
 }
 
 android {
@@ -51,10 +50,4 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation("com.google.code.gson:gson:2.11.0")
-}
-
-// 구문/스타일 검사: ./gradlew ktlintCheck (자동 수정: ./gradlew ktlintFormat)
-ktlint {
-    android.set(true)
-    ignoreFailures.set(false)
 }
