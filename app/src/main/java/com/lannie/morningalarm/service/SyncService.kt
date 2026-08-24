@@ -98,8 +98,12 @@ class SyncService : Service() {
             Kind.TEST_ALARM -> {
                 if (fresh) {
                     RingPlayerService.start(
-                        this, alarmId = "", text = msg.text, ringIndex = 0,
-                        type = RingPlayerService.TYPE_TEST, messageId = msg.id,
+                        this,
+                        alarmId = "",
+                        text = msg.text,
+                        ringIndex = 0,
+                        type = RingPlayerService.TYPE_TEST,
+                        messageId = msg.id
                     )
                 }
             }
@@ -115,7 +119,9 @@ class SyncService : Service() {
             putExtra("sentAt", msg.sentAt)
         }
         val fullPi = PendingIntent.getActivity(
-            this, msg.id.hashCode(), full,
+            this,
+            msg.id.hashCode(),
+            full,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val notif = NotificationCompat.Builder(this, App.CH_URGENT)
@@ -135,7 +141,9 @@ class SyncService : Service() {
 
     private fun showChatNotification(msg: Message, prefix: String) {
         val pi = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val peerName = Prefs(this).peerName.ifBlank { "가족" }
@@ -158,7 +166,9 @@ class SyncService : Service() {
 
     private fun startForegroundQuiet() {
         val pi = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val notif: Notification = NotificationCompat.Builder(this, App.CH_SVC)

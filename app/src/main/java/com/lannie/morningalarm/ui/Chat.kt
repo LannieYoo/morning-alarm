@@ -68,7 +68,7 @@ fun ChatScreen(me: String, peer: String, peerName: String) {
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             items(messages, key = { it.id }) { msg ->
                 MessageBubble(msg = msg, mine = msg.fromPhone == me, peerName = peerName)
@@ -78,10 +78,11 @@ fun ChatScreen(me: String, peer: String, peerName: String) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
-                    value = input, onValueChange = { input = it },
+                    value = input,
+                    onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("메시지 입력") },
-                    maxLines = 3,
+                    maxLines = 3
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = {
@@ -115,7 +116,7 @@ private fun MessageBubble(msg: Message, mine: Boolean, peerName: String) {
     }
     Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
+        horizontalAlignment = if (mine) Alignment.End else Alignment.Start
     ) {
         if (!mine) Text(peerName, fontSize = 11.sp, color = Color.Gray)
         Box(
@@ -123,7 +124,7 @@ private fun MessageBubble(msg: Message, mine: Boolean, peerName: String) {
                 .widthIn(max = 280.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(bg)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text((if (urgent) "🚨 " else "") + msg.text, fontSize = 15.sp)
         }

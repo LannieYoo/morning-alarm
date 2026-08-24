@@ -97,7 +97,9 @@ fun MomHome(prefs: Prefs) {
         NavigationBar {
             NavigationBarItem(selected = tab == 0, onClick = { tab = 0 }, icon = { Text("⏰") }, label = { Text("알람") })
             NavigationBarItem(selected = tab == 1, onClick = { tab = 1 }, icon = { Text("📋") }, label = { Text("기록") })
-            NavigationBarItem(selected = tab == 2, onClick = { tab = 2 }, icon = { Text("💬") }, label = { Text("메시지") })
+            NavigationBarItem(selected = tab == 2, onClick = {
+                tab = 2
+            }, icon = { Text("💬") }, label = { Text("메시지") })
             NavigationBarItem(selected = tab == 3, onClick = { tab = 3 }, icon = { Text("🩺") }, label = { Text("상태") })
         }
     }
@@ -128,15 +130,18 @@ private fun MomAlarmsTab(prefs: Prefs) {
                 runCatching { Repo.saveAlarm(alarm) }
                 showEditor = false
             },
-            onCancel = { showEditor = false },
+            onCancel = { showEditor = false }
         )
         return
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Button(
-            onClick = { editing = null; showEditor = true },
-            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                editing = null
+                showEditor = true
+            },
+            modifier = Modifier.fillMaxWidth()
         ) { Text("＋ 새 알람 만들기") }
         Spacer(Modifier.height(8.dp))
         Text("알람 시각은 자녀 폰(한국) 시간 기준으로 울립니다", fontSize = 11.sp, color = Color.Gray)
@@ -152,27 +157,32 @@ private fun MomAlarmsTab(prefs: Prefs) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "${two(alarm.hour)}:${two(alarm.minute)}",
-                                fontSize = 30.sp, fontWeight = FontWeight.Bold,
-                                color = if (alarm.enabled) MaterialTheme.colorScheme.primary else Color.Gray,
+                                fontSize = 30.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (alarm.enabled) MaterialTheme.colorScheme.primary else Color.Gray
                             )
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(daysLabel(alarm.days), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
                                     "${alarm.repeatCount}회 울림 · ${alarm.intervalMin}분 간격 · 질문 ${alarm.questions.size}개",
-                                    fontSize = 12.sp, color = Color.Gray,
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
                                 )
                             }
                             Switch(
                                 checked = alarm.enabled,
                                 onCheckedChange = { on ->
                                     runCatching { Repo.saveAlarm(alarm.copy(enabled = on)) }
-                                },
+                                }
                             )
                         }
                         Text(alarm.text, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
                         Row {
-                            TextButton(onClick = { editing = alarm; showEditor = true }) { Text("수정") }
+                            TextButton(onClick = {
+                                editing = alarm
+                                showEditor = true
+                            }) { Text("수정") }
                             TextButton(onClick = { runCatching { Repo.deleteAlarm(alarm.id) } }) {
                                 Text("삭제", color = Color(0xFFC62828))
                             }
@@ -200,36 +210,42 @@ private fun AlarmEditor(initial: Alarm, onSave: (Alarm) -> Unit, onCancel: () ->
     var error by remember { mutableStateOf("") }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
         Text(
             if (initial.id.isBlank()) "새 알람" else "알람 수정",
-            fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(16.dp))
 
         Text("시간 (자녀 폰 기준, 24시간제)", fontWeight = FontWeight.SemiBold)
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
-                value = hourText, onValueChange = { hourText = it.filter { c -> c.isDigit() }.take(2) },
+                value = hourText,
+                onValueChange = { hourText = it.filter { c -> c.isDigit() }.take(2) },
                 label = { Text("시") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(90.dp), singleLine = true,
+                modifier = Modifier.width(90.dp),
+                singleLine = true
             )
             Text("  :  ", fontSize = 24.sp)
             OutlinedTextField(
-                value = minuteText, onValueChange = { minuteText = it.filter { c -> c.isDigit() }.take(2) },
+                value = minuteText,
+                onValueChange = { minuteText = it.filter { c -> c.isDigit() }.take(2) },
                 label = { Text("분") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(90.dp), singleLine = true,
+                modifier = Modifier.width(90.dp),
+                singleLine = true
             )
         }
         Spacer(Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = text, onValueChange = { text = it },
+            value = text,
+            onValueChange = { text = it },
             label = { Text("알람에서 읽어줄 말 (예: 유진아 일어나! 학교 가야지)") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(16.dp))
 
@@ -240,7 +256,7 @@ private fun AlarmEditor(initial: Alarm, onSave: (Alarm) -> Unit, onCancel: () ->
                 FilterChip(
                     selected = days.contains(day),
                     onClick = { days = if (days.contains(day)) days - day else days + day },
-                    label = { Text(label, fontSize = 12.sp) },
+                    label = { Text(label, fontSize = 12.sp) }
                 )
             }
         }
@@ -256,23 +272,28 @@ private fun AlarmEditor(initial: Alarm, onSave: (Alarm) -> Unit, onCancel: () ->
         Text("그만 울리기 질문 (최대 10개)", fontWeight = FontWeight.SemiBold)
         Text(
             "질문을 넣으면 자녀가 정답을 맞혀야 그날 알람이 꺼져요.\n예) Q: 우리집 첫 강아지 이름은? A: 미미",
-            fontSize = 12.sp, color = Color.Gray,
+            fontSize = 12.sp,
+            color = Color.Gray
         )
         Spacer(Modifier.height(8.dp))
         questions.forEachIndexed { i, q ->
             Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Column(Modifier.padding(10.dp)) {
                     OutlinedTextField(
-                        value = q.q, onValueChange = { questions[i] = q.copy(q = it) },
+                        value = q.q,
+                        onValueChange = { questions[i] = q.copy(q = it) },
                         label = { Text("질문 ${i + 1}") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
-                            value = q.a, onValueChange = { questions[i] = q.copy(a = it) },
+                            value = q.a,
+                            onValueChange = { questions[i] = q.copy(a = it) },
                             label = { Text("정답") },
-                            modifier = Modifier.weight(1f), singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
                         )
                         TextButton(onClick = { questions.removeAt(i) }) { Text("삭제") }
                     }
@@ -301,16 +322,18 @@ private fun AlarmEditor(initial: Alarm, onSave: (Alarm) -> Unit, onCancel: () ->
                         questions.any { it.q.isNotBlank() && it.a.isBlank() } -> error = "정답이 비어 있는 질문이 있어요"
                         else -> onSave(
                             initial.copy(
-                                hour = h, minute = m, text = text.trim(),
+                                hour = h,
+                                minute = m,
+                                text = text.trim(),
                                 days = days.sorted(),
                                 repeatCount = repeatCount.toInt(),
                                 intervalMin = intervalMin.toInt(),
-                                questions = questions.filter { it.q.isNotBlank() },
+                                questions = questions.filter { it.q.isNotBlank() }
                             )
                         )
                     }
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f)
             ) { Text("저장") }
             Spacer(Modifier.width(8.dp))
             OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("취소") }
@@ -333,7 +356,9 @@ private fun MomLogTab(prefs: Prefs) {
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Text(
             "알람이 언제 울렸고, 자녀가 언제 반응했는지 기록이에요 (${TzState.label()} 표시)",
-            fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp),
+            fontSize = 12.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(vertical = 8.dp)
         )
         if (events.isEmpty()) {
             Text("아직 기록이 없어요", color = Color.Gray, modifier = Modifier.padding(16.dp))
@@ -345,7 +370,8 @@ private fun MomLogTab(prefs: Prefs) {
                         Row {
                             Text(
                                 fmtDateTime(e.firedAt),
-                                fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
                             )
                             Spacer(Modifier.width(6.dp))
                             if (e.type == "test") {
@@ -379,14 +405,20 @@ fun TimezoneSetting(prefs: Prefs) {
     Row {
         FilterChip(
             selected = TzState.zoneId == TzState.SEOUL,
-            onClick = { TzState.zoneId = TzState.SEOUL; prefs.displayTz = TzState.SEOUL },
-            label = { Text("🇰🇷 한국시간") },
+            onClick = {
+                TzState.zoneId = TzState.SEOUL
+                prefs.displayTz = TzState.SEOUL
+            },
+            label = { Text("🇰🇷 한국시간") }
         )
         Spacer(Modifier.width(8.dp))
         FilterChip(
             selected = TzState.zoneId == TzState.LOCAL,
-            onClick = { TzState.zoneId = TzState.LOCAL; prefs.displayTz = TzState.LOCAL },
-            label = { Text("📍 현지(기기) 시간") },
+            onClick = {
+                TzState.zoneId = TzState.LOCAL
+                prefs.displayTz = TzState.LOCAL
+            },
+            label = { Text("📍 현지(기기) 시간") }
         )
     }
 }
@@ -400,9 +432,12 @@ private fun MomStatusTab(prefs: Prefs, peerHealth: Map<String, Any>?) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("연결", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Text(
-            if (prefs.paired) "✅ 자녀와 연결됨 · ${prefs.peerPhone}"
-            else "⏳ 수락 대기 중 · ${prefs.peerPhone}",
-            fontSize = 13.sp,
+            if (prefs.paired) {
+                "✅ 자녀와 연결됨 · ${prefs.peerPhone}"
+            } else {
+                "⏳ 수락 대기 중 · ${prefs.peerPhone}"
+            },
+            fontSize = 13.sp
         )
         Spacer(Modifier.height(20.dp))
 
@@ -422,7 +457,8 @@ private fun MomStatusTab(prefs: Prefs, peerHealth: Map<String, Any>?) {
             if (vol >= 0) {
                 Text(
                     (if (vol >= 50) "✅" else "⚠️") + " 알람 볼륨 $vol% (울릴 때 자동으로 최대로 올라감)",
-                    fontSize = 13.sp, modifier = Modifier.padding(vertical = 2.dp),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(vertical = 2.dp)
                 )
             }
             val updated = (peerHealth["updatedAt"] as? Number)?.toLong() ?: 0L
@@ -435,9 +471,10 @@ private fun MomStatusTab(prefs: Prefs, peerHealth: Map<String, Any>?) {
         Text("테스트 (전화 통화 중에도 들리는지 꼭 확인해 보세요)", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
-            value = testText, onValueChange = { testText = it },
+            value = testText,
+            onValueChange = { testText = it },
             label = { Text("테스트 내용") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
         Button(
@@ -445,7 +482,7 @@ private fun MomStatusTab(prefs: Prefs, peerHealth: Map<String, Any>?) {
                 runCatching { Repo.sendMessage(prefs.myPhone, prefs.peerPhone, testText, Kind.TEST_ALARM) }
                 sentInfo = "🔊 테스트 알람 전송됨 — 자녀 폰에서 즉시 울립니다"
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
         ) { Text("🔊 테스트 알람 보내기 (무음이어도 소리남)") }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(
@@ -453,7 +490,7 @@ private fun MomStatusTab(prefs: Prefs, peerHealth: Map<String, Any>?) {
                 runCatching { Repo.sendMessage(prefs.myPhone, prefs.peerPhone, testText, Kind.URGENT) }
                 sentInfo = "🚨 테스트 전면 팝업 전송됨"
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
         ) { Text("🚨 테스트 전면 팝업 보내기") }
         if (sentInfo.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
@@ -474,6 +511,6 @@ fun HealthRowView(label: String, value: Any?) {
         (if (ok) "✅ " else "⚠️ ") + label + (if (ok) "" else " — 자녀 폰에서 설정 필요"),
         fontSize = 13.sp,
         color = if (ok) Color.Unspecified else Color(0xFFC62828),
-        modifier = Modifier.padding(vertical = 2.dp),
+        modifier = Modifier.padding(vertical = 2.dp)
     )
 }

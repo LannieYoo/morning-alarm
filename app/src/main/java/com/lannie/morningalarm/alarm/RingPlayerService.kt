@@ -62,15 +62,21 @@ class RingPlayerService : Service() {
         var eventId = ""
         if (type != TYPE_PREVIEW) {
             eventId = runCatching { Repo.newEventId() }.getOrDefault("")
-            if (eventId.isNotBlank()) runCatching {
-                Repo.createEvent(
-                    AlarmEvent(
-                        id = eventId, alarmId = alarmId, alarmText = text,
-                        ownerPhone = prefs.peerPhone, targetPhone = prefs.myPhone,
-                        type = if (type == TYPE_TEST) "test" else "alarm",
-                        ringIndex = ringIndex, firedAt = System.currentTimeMillis(),
+            if (eventId.isNotBlank()) {
+                runCatching {
+                    Repo.createEvent(
+                        AlarmEvent(
+                            id = eventId,
+                            alarmId = alarmId,
+                            alarmText = text,
+                            ownerPhone = prefs.peerPhone,
+                            targetPhone = prefs.myPhone,
+                            type = if (type == TYPE_TEST) "test" else "alarm",
+                            ringIndex = ringIndex,
+                            firedAt = System.currentTimeMillis()
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -81,12 +87,20 @@ class RingPlayerService : Service() {
         startTts(text)
 
         // 회차당 최대 2분 울리고 자동 종료 (반복 회차는 AlarmReceiver가 별도 예약)
-        handler.postDelayed({ stopRinging(); stopSelf() }, RING_DURATION_MS)
+        handler.postDelayed({
+            stopRinging()
+            stopSelf()
+        }, RING_DURATION_MS)
         return START_NOT_STICKY
     }
 
     private fun startForegroundWithNotification(
-        text: String, alarmId: String, eventId: String, type: String, messageId: String, ringIndex: Int,
+        text: String,
+        alarmId: String,
+        eventId: String,
+        type: String,
+        messageId: String,
+        ringIndex: Int
     ) {
         val full = Intent(this, RingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -98,7 +112,9 @@ class RingPlayerService : Service() {
             putExtra("ringIndex", ringIndex)
         }
         val fullPi = PendingIntent.getActivity(
-            this, 1001, full,
+            this,
+            1001,
+            full,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val notif: Notification = NotificationCompat.Builder(this, App.CH_ALARM)
@@ -181,7 +197,10 @@ class RingPlayerService : Service() {
     private fun stopRinging() {
         speaking = false
         handler.removeCallbacksAndMessages(null)
-        runCatching { tts?.stop(); tts?.shutdown() }
+        runCatching {
+            tts?.stop()
+            tts?.shutdown()
+        }
         tts = null
         vibrator?.cancel()
         if (prevVolume >= 0) {
@@ -207,8 +226,12 @@ class RingPlayerService : Service() {
         const val RING_DURATION_MS = 120_000L
 
         fun start(
-            context: Context, alarmId: String, text: String, ringIndex: Int,
-            type: String, messageId: String = "",
+            context: Context,
+            alarmId: String,
+            text: String,
+            ringIndex: Int,
+            type: String,
+            messageId: String = ""
         ) {
             val intent = Intent(context, RingPlayerService::class.java)
                 .putExtra("alarmId", alarmId)

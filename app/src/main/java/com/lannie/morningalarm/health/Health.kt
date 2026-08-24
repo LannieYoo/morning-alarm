@@ -20,7 +20,7 @@ data class HealthStatus(
     val batteryOk: Boolean,
     val fullscreenOk: Boolean,
     val dndOk: Boolean,
-    val alarmVolumePct: Int,
+    val alarmVolumePct: Int
 ) {
     val allOk: Boolean
         get() = notifOk && exactOk && batteryOk && fullscreenOk && dndOk
@@ -32,7 +32,7 @@ data class HealthStatus(
         "fullscreenOk" to fullscreenOk,
         "dndOk" to dndOk,
         "alarmVolumePct" to alarmVolumePct,
-        "updatedAt" to System.currentTimeMillis(),
+        "updatedAt" to System.currentTimeMillis()
     )
 }
 
@@ -66,20 +66,22 @@ object Health {
     fun notifSettingsIntent(context: Context): Intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
         .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
 
-    fun exactAlarmIntent(context: Context): Intent? =
-        if (Build.VERSION.SDK_INT >= 31)
-            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName))
-        else null
+    fun exactAlarmIntent(context: Context): Intent? = if (Build.VERSION.SDK_INT >= 31) {
+        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName))
+    } else {
+        null
+    }
 
     fun batteryIntent(context: Context): Intent = Intent(
         Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
         Uri.parse("package:" + context.packageName)
     )
 
-    fun fullscreenIntent(context: Context): Intent? =
-        if (Build.VERSION.SDK_INT >= 34)
-            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + context.packageName))
-        else null
+    fun fullscreenIntent(context: Context): Intent? = if (Build.VERSION.SDK_INT >= 34) {
+        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + context.packageName))
+    } else {
+        null
+    }
 
     fun soundSettingsIntent(): Intent = Intent(Settings.ACTION_SOUND_SETTINGS)
 }

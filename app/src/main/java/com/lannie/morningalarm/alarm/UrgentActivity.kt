@@ -62,31 +62,36 @@ class UrgentActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Brush.verticalGradient(listOf(Color(0xFFD50000), Color(0xFFFF6D00)))),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Text("🚨", fontSize = 64.sp)
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "엄마의 긴급 메시지",
-                            color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA).format(Date(sentAt)),
-                            color = Color(0xFFFFE0B2), fontSize = 13.sp,
+                            color = Color(0xFFFFE0B2),
+                            fontSize = 13.sp
                         )
                         Spacer(Modifier.height(28.dp))
                         Text(
                             text,
-                            color = Color.White, fontSize = 30.sp,
-                            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                            color = Color.White,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(Modifier.height(48.dp))
                         Button(
@@ -98,8 +103,8 @@ class UrgentActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White,
-                                contentColor = Color(0xFFD50000),
-                            ),
+                                contentColor = Color(0xFFD50000)
+                            )
                         ) { Text("확인했어요", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
                     }
                 }
@@ -122,7 +127,8 @@ class UrgentActivity : ComponentActivity() {
         runCatching {
             audio.setStreamVolume(
                 AudioManager.STREAM_ALARM,
-                audio.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0
+                audio.getStreamMaxVolume(AudioManager.STREAM_ALARM),
+                0
             )
         }
         tts = TextToSpeech(this) { status ->
@@ -141,7 +147,10 @@ class UrgentActivity : ComponentActivity() {
 
     private fun stopEffects() {
         vibrator?.cancel()
-        runCatching { tts?.stop(); tts?.shutdown() }
+        runCatching {
+            tts?.stop()
+            tts?.shutdown()
+        }
         tts = null
     }
 

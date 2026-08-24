@@ -61,7 +61,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Center
     ) {
         Text("⏰ 모닝콜", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Text("멀리 있어도 아침을 깨워주는 가족 알람", fontSize = 14.sp, color = Color.Gray)
@@ -73,21 +73,23 @@ fun OnboardingScreen(onDone: () -> Unit) {
             FilterChip(
                 selected = role == "mom",
                 onClick = { role = "mom" },
-                label = { Text("알람 보내는 사람 (엄마)") },
+                label = { Text("알람 보내는 사람 (엄마)") }
             )
             Spacer(Modifier.width(8.dp))
             FilterChip(
                 selected = role == "daughter",
                 onClick = { role = "daughter" },
-                label = { Text("알람 받는 사람 (자녀)") },
+                label = { Text("알람 받는 사람 (자녀)") }
             )
         }
         Spacer(Modifier.height(20.dp))
 
         OutlinedTextField(
-            value = name, onValueChange = { name = it },
+            value = name,
+            onValueChange = { name = it },
             label = { Text("이름 (예: 엄마, 유진)") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Spacer(Modifier.height(16.dp))
 
@@ -96,10 +98,12 @@ fun OnboardingScreen(onDone: () -> Unit) {
         CountryRow(cc = myCc, onCc = { myCc = it })
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
-            value = myPhone, onValueChange = { myPhone = it },
+            value = myPhone,
+            onValueChange = { myPhone = it },
             label = { Text("전화번호 (예: 01012345678)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
 
         if (role == "mom") {
@@ -109,10 +113,12 @@ fun OnboardingScreen(onDone: () -> Unit) {
             CountryRow(cc = peerCc, onCc = { peerCc = it })
             Spacer(Modifier.height(6.dp))
             OutlinedTextField(
-                value = peerPhone, onValueChange = { peerPhone = it },
+                value = peerPhone,
+                onValueChange = { peerPhone = it },
                 label = { Text("자녀 전화번호") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
         }
 
@@ -125,10 +131,22 @@ fun OnboardingScreen(onDone: () -> Unit) {
         Button(
             onClick = {
                 error = ""
-                if (role.isBlank()) { error = "역할을 선택하세요"; return@Button }
-                if (name.isBlank()) { error = "이름을 입력하세요"; return@Button }
-                if (myPhone.isBlank()) { error = "전화번호를 입력하세요"; return@Button }
-                if (role == "mom" && peerPhone.isBlank()) { error = "자녀 전화번호를 입력하세요"; return@Button }
+                if (role.isBlank()) {
+                    error = "역할을 선택하세요"
+                    return@Button
+                }
+                if (name.isBlank()) {
+                    error = "이름을 입력하세요"
+                    return@Button
+                }
+                if (myPhone.isBlank()) {
+                    error = "전화번호를 입력하세요"
+                    return@Button
+                }
+                if (role == "mom" && peerPhone.isBlank()) {
+                    error = "자녀 전화번호를 입력하세요"
+                    return@Button
+                }
                 busy = true
                 scope.launch {
                     try {
@@ -158,13 +176,14 @@ fun OnboardingScreen(onDone: () -> Unit) {
                 }
             },
             enabled = !busy,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
         ) { Text(if (busy) "연결 중…" else "시작하기", fontSize = 17.sp) }
 
         Spacer(Modifier.height(12.dp))
         Text(
             "· 같은 나라 번호끼리는 국가번호만 맞추면 됩니다.\n· 엄마가 보낸 연결 요청을 자녀가 수락하면 알람을 보낼 수 있어요.",
-            fontSize = 12.sp, color = Color.Gray,
+            fontSize = 12.sp,
+            color = Color.Gray
         )
     }
 }
@@ -177,10 +196,12 @@ private fun CountryRow(cc: String, onCc: (String) -> Unit) {
         FilterChip(selected = cc == "1", onClick = { onCc("1") }, label = { Text("🇨🇦 +1 캐나다") })
         Spacer(Modifier.width(8.dp))
         OutlinedTextField(
-            value = cc, onValueChange = { onCc(it.filter { ch -> ch.isDigit() }) },
+            value = cc,
+            onValueChange = { onCc(it.filter { ch -> ch.isDigit() }) },
             label = { Text("국가번호") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(110.dp), singleLine = true,
+            modifier = Modifier.width(110.dp),
+            singleLine = true
         )
     }
 }

@@ -21,7 +21,9 @@
 
 ## 빌드
 
-- 이 PC에는 Java/Android SDK 없음 → APK는 GitHub Actions(`.github/workflows/build-apk.yml`) → Actions 탭 Artifacts에서 다운로드
+- 이 PC에는 Android SDK 없음 → APK는 GitHub Actions(`.github/workflows/build-apk.yml`) → Actions 탭 Artifacts에서 다운로드
+- JDK 17: `C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot` (PATH 미등록), ktlint jar: `~/.ktlint/ktlint.jar`
+- **코드 수정 후 반드시 `.\lint.ps1` 실행** (자동 수정: `.\lint.ps1 -Fix`). CI에도 `lint` job이 있어 push마다 ktlintCheck 실행
 - 스택: Kotlin 2.0.20 / AGP 8.5.2 / Gradle 8.9 / Compose BOM 2024.09.03 / minSdk 26, target 34
 
 ## Firestore 컬렉션
@@ -30,6 +32,6 @@
 
 ## 남은 일 / 미구현
 
-- 사용자가 Firebase 프로젝트 생성 + Secret 등록 후 재빌드해야 실제 동작 (SETUP.md 참고)
+- Firebase 프로젝트 `morning-alarm-c2c62` 생성 완료(2026-08-23): Firestore(서울, default), 익명 인증 ON, rules 게시, app/google-services.json 배치, GitHub Secret 등록
 - 실기기 검증 전: 삼성 절전 정책, TTS 한국어 엔진, API 34 전체화면 알림 권한은 SETUP.md 체크리스트로 안내
 - 엄마 폰 알림 수신은 SyncService 살아있을 때만 (mom 역할은 BootReceiver 재시작 제외)

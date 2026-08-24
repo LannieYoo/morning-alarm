@@ -67,11 +67,17 @@ fun DaughterHome(prefs: Prefs) {
         }
         NavigationBar {
             NavigationBarItem(selected = tab == 0, onClick = { tab = 0 }, icon = { Text("⏰") }, label = { Text("알람") })
-            NavigationBarItem(selected = tab == 1, onClick = { tab = 1 }, icon = { Text("💬") }, label = { Text("메시지") })
+            NavigationBarItem(selected = tab == 1, onClick = {
+                tab = 1
+            }, icon = { Text("💬") }, label = { Text("메시지") })
             NavigationBarItem(
                 selected = tab == 2,
-                onClick = { tab = 2; health = Health.check(context) },
-                icon = { Text("🩺") }, label = { Text("상태") },
+                onClick = {
+                    tab = 2
+                    health = Health.check(context)
+                },
+                icon = { Text("🩺") },
+                label = { Text("상태") }
             )
         }
     }
@@ -93,7 +99,9 @@ private fun DaughterAlarmsTab(prefs: Prefs) {
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Text(
             "예약된 알람 (엄마가 관리 — 여기서는 볼 수만 있어요)",
-            fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp),
+            fontSize = 12.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(vertical = 8.dp)
         )
         if (alarms.isEmpty()) {
             Text("아직 예약된 알람이 없어요", color = Color.Gray, modifier = Modifier.padding(16.dp))
@@ -113,8 +121,9 @@ private fun AlarmReadOnlyCard(alarm: Alarm) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${two(alarm.hour)}:${two(alarm.minute)}",
-                    fontSize = 30.sp, fontWeight = FontWeight.Bold,
-                    color = if (alarm.enabled) MaterialTheme.colorScheme.primary else Color.Gray,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (alarm.enabled) MaterialTheme.colorScheme.primary else Color.Gray
                 )
                 Spacer(Modifier.width(10.dp))
                 Column {
@@ -122,7 +131,8 @@ private fun AlarmReadOnlyCard(alarm: Alarm) {
                     Text(
                         "${alarm.repeatCount}회 울림 · ${alarm.intervalMin}분 간격" +
                             if (alarm.questions.isNotEmpty()) " · 끄려면 질문 정답 필요" else "",
-                        fontSize = 12.sp, color = Color.Gray,
+                        fontSize = 12.sp,
+                        color = Color.Gray
                     )
                 }
             }
@@ -205,7 +215,8 @@ private fun DaughterStatusTab(prefs: Prefs, health: HealthStatus, onRefresh: () 
         Text(
             (if (health.alarmVolumePct >= 50) "✅" else "⚠️") +
                 " 알람 볼륨 ${health.alarmVolumePct}% — 울릴 때 자동으로 최대로 올라가요",
-            fontSize = 13.sp, modifier = Modifier.padding(vertical = 2.dp),
+            fontSize = 13.sp,
+            modifier = Modifier.padding(vertical = 2.dp)
         )
         Spacer(Modifier.height(20.dp))
 
@@ -214,11 +225,14 @@ private fun DaughterStatusTab(prefs: Prefs, health: HealthStatus, onRefresh: () 
         OutlinedButton(
             onClick = {
                 RingPlayerService.start(
-                    context, alarmId = "", text = "알람 미리 듣기예요. 무음 모드여도 이렇게 크게 들려요.",
-                    ringIndex = 0, type = RingPlayerService.TYPE_PREVIEW,
+                    context,
+                    alarmId = "",
+                    text = "알람 미리 듣기예요. 무음 모드여도 이렇게 크게 들려요.",
+                    ringIndex = 0,
+                    type = RingPlayerService.TYPE_PREVIEW
                 )
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
         ) { Text("🔊 알람 미리 듣기 (내 폰에서 바로)") }
         Spacer(Modifier.height(20.dp))
 
@@ -232,13 +246,13 @@ private fun DaughterStatusTab(prefs: Prefs, health: HealthStatus, onRefresh: () 
 private fun FixRow(label: String, ok: Boolean, onFix: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             (if (ok) "✅ " else "⚠️ ") + label,
             fontSize = 13.sp,
             color = if (ok) Color.Unspecified else Color(0xFFC62828),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f)
         )
         if (!ok) {
             TextButton(onClick = onFix) { Text("해결하기") }

@@ -32,7 +32,7 @@ class AlarmReceiver : BroadcastReceiver() {
             alarmId = alarm.id,
             text = alarm.text,
             ringIndex = ringIndex,
-            type = RingPlayerService.TYPE_ALARM,
+            type = RingPlayerService.TYPE_ALARM
         )
     }
 }

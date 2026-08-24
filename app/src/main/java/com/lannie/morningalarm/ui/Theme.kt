@@ -15,7 +15,7 @@ private val WarmScheme = lightColorScheme(
     background = Color(0xFFFDF8F5),
     surface = Color(0xFFFDF8F5),
     surfaceVariant = Color(0xFFF5DED4),
-    onSurfaceVariant = Color(0xFF53433D),
+    onSurfaceVariant = Color(0xFF53433D)
 )
 
 @Composable

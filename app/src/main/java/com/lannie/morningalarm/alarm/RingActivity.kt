@@ -58,19 +58,33 @@ class RingActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 var askQuestion by remember { mutableStateOf(false) }
-                var qIndex by remember { mutableStateOf(if (questions.isEmpty()) 0 else (System.currentTimeMillis() % questions.size).toInt()) }
+                var qIndex by remember {
+                    mutableStateOf(
+                        if (questions.isEmpty()) {
+                            0
+                        } else {
+                            (
+                                System.currentTimeMillis() %
+                                    questions.size
+                                ).toInt()
+                        }
+                    )
+                }
                 var answer by remember { mutableStateOf("") }
                 var wrong by remember { mutableStateOf(false) }
 
                 fun logDismiss(stopped: Boolean, correct: Boolean) {
-                    if (eventId.isNotBlank()) runCatching {
-                        Repo.updateEvent(
-                            eventId, mapOf(
-                                "dismissedAt" to System.currentTimeMillis(),
-                                "answered" to correct,
-                                "stoppedForDay" to stopped,
+                    if (eventId.isNotBlank()) {
+                        runCatching {
+                            Repo.updateEvent(
+                                eventId,
+                                mapOf(
+                                    "dismissedAt" to System.currentTimeMillis(),
+                                    "answered" to correct,
+                                    "stoppedForDay" to stopped
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
@@ -102,18 +116,20 @@ class RingActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Brush.verticalGradient(listOf(Color(0xFF1A237E), Color(0xFF311B92)))),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Text(
                             LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
-                            color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 64.sp,
+                            fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
@@ -122,18 +138,24 @@ class RingActivity : ComponentActivity() {
                                 RingPlayerService.TYPE_PREVIEW -> "알람 미리 듣기"
                                 else -> "엄마의 모닝콜 ⏰"
                             },
-                            color = Color(0xFFFFD54F), fontSize = 18.sp,
+                            color = Color(0xFFFFD54F),
+                            fontSize = 18.sp
                         )
                         Spacer(Modifier.height(20.dp))
                         Text(
-                            text, color = Color.White, fontSize = 28.sp,
-                            fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                            text,
+                            color = Color.White,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
                         )
                         if (type == RingPlayerService.TYPE_ALARM && alarm != null && alarm.repeatCount > 1) {
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 "${ringIndex + 1}번째 울림 / 총 ${alarm.repeatCount}회 · 끄지 않으면 ${alarm.intervalMin}분 후 다시 울려요",
-                                color = Color(0xFFB39DDB), fontSize = 13.sp, textAlign = TextAlign.Center,
+                                color = Color(0xFFB39DDB),
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
                         Spacer(Modifier.height(36.dp))
@@ -142,28 +164,34 @@ class RingActivity : ComponentActivity() {
                             type != RingPlayerService.TYPE_ALARM -> {
                                 Button(
                                     onClick = { confirmTest() },
-                                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                                    modifier = Modifier.fillMaxWidth().height(56.dp)
                                 ) { Text("확인했어요", fontSize = 18.sp) }
                             }
 
                             askQuestion && questions.isNotEmpty() -> {
                                 Text(
                                     "오늘 알람을 끝내려면 정답을 입력하세요",
-                                    color = Color(0xFFFFD54F), fontSize = 15.sp,
+                                    color = Color(0xFFFFD54F),
+                                    fontSize = 15.sp
                                 )
                                 Spacer(Modifier.height(10.dp))
                                 Text(
                                     "Q. " + questions[qIndex].q,
-                                    color = Color.White, fontSize = 20.sp,
-                                    fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
                                 )
                                 Spacer(Modifier.height(12.dp))
                                 OutlinedTextField(
                                     value = answer,
-                                    onValueChange = { answer = it; wrong = false },
+                                    onValueChange = {
+                                        answer = it
+                                        wrong = false
+                                    },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
-                                    placeholder = { Text("정답 입력") },
+                                    placeholder = { Text("정답 입력") }
                                 )
                                 if (wrong) {
                                     Spacer(Modifier.height(6.dp))
@@ -173,13 +201,15 @@ class RingActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         val ok = norm(answer) == norm(questions[qIndex].a)
-                                        if (ok) stopForDay() else {
+                                        if (ok) {
+                                            stopForDay()
+                                        } else {
                                             wrong = true
                                             qIndex = (qIndex + 1) % questions.size
                                             answer = ""
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                                    modifier = Modifier.fillMaxWidth().height(52.dp)
                                 ) { Text("정답 확인", fontSize = 17.sp) }
                             }
 
@@ -189,17 +219,18 @@ class RingActivity : ComponentActivity() {
                                         if (questions.isEmpty()) stopForDay() else askQuestion = true
                                     },
                                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF7043)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF7043))
                                 ) { Text("오늘 알람 끝내기", fontSize = 18.sp) }
                                 if (alarm != null && alarm.repeatCount > 1) {
                                     Spacer(Modifier.height(10.dp))
                                     OutlinedButton(
                                         onClick = { snooze() },
-                                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                                        modifier = Modifier.fillMaxWidth().height(48.dp)
                                     ) {
                                         Text(
                                             "일단 끄기 (${alarm.intervalMin}분 후 다시 울림)",
-                                            color = Color.White, fontSize = 15.sp,
+                                            color = Color.White,
+                                            fontSize = 15.sp
                                         )
                                     }
                                 }

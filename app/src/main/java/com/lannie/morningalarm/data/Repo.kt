@@ -41,8 +41,12 @@ object Repo {
         val doc = db.collection("pairRequests").document()
         doc.set(
             PairRequest(
-                id = doc.id, fromPhone = fromPhone, fromName = fromName,
-                toPhone = toPhone, status = "pending", createdAt = System.currentTimeMillis(),
+                id = doc.id,
+                fromPhone = fromPhone,
+                fromName = fromName,
+                toPhone = toPhone,
+                status = "pending",
+                createdAt = System.currentTimeMillis()
             )
         )
     }
@@ -52,9 +56,13 @@ object Repo {
             .whereEqualTo("toPhone", phone)
             .whereEqualTo("status", "pending")
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(s.documents.mapNotNull { d ->
-                    d.toObject(PairRequest::class.java)?.apply { id = d.id }
-                })
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d ->
+                            d.toObject(PairRequest::class.java)?.apply { id = d.id }
+                        }
+                    )
+                }
             }
 
     fun listenPairAccepted(fromPhone: String, onChange: (List<PairRequest>) -> Unit): ListenerRegistration =
@@ -62,9 +70,13 @@ object Repo {
             .whereEqualTo("fromPhone", fromPhone)
             .whereEqualTo("status", "accepted")
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(s.documents.mapNotNull { d ->
-                    d.toObject(PairRequest::class.java)?.apply { id = d.id }
-                })
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d ->
+                            d.toObject(PairRequest::class.java)?.apply { id = d.id }
+                        }
+                    )
+                }
             }
 
     fun setPairStatus(requestId: String, status: String) {
@@ -74,8 +86,11 @@ object Repo {
     // ---- 알람 ----
 
     fun saveAlarm(alarm: Alarm): String {
-        val doc = if (alarm.id.isBlank()) db.collection("alarms").document()
-        else db.collection("alarms").document(alarm.id)
+        val doc = if (alarm.id.isBlank()) {
+            db.collection("alarms").document()
+        } else {
+            db.collection("alarms").document(alarm.id)
+        }
         alarm.id = doc.id
         alarm.updatedAt = System.currentTimeMillis()
         doc.set(alarm)
@@ -90,18 +105,26 @@ object Repo {
         db.collection("alarms")
             .whereEqualTo("targetPhone", targetPhone)
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(s.documents.mapNotNull { d ->
-                    d.toObject(Alarm::class.java)?.apply { id = d.id }
-                })
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d ->
+                            d.toObject(Alarm::class.java)?.apply { id = d.id }
+                        }
+                    )
+                }
             }
 
     fun listenAlarmsOwned(ownerPhone: String, onChange: (List<Alarm>) -> Unit): ListenerRegistration =
         db.collection("alarms")
             .whereEqualTo("ownerPhone", ownerPhone)
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(s.documents.mapNotNull { d ->
-                    d.toObject(Alarm::class.java)?.apply { id = d.id }
-                })
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d ->
+                            d.toObject(Alarm::class.java)?.apply { id = d.id }
+                        }
+                    )
+                }
             }
 
     // ---- 알람 기록 ----
@@ -109,8 +132,11 @@ object Repo {
     fun newEventId(): String = db.collection("events").document().id
 
     fun createEvent(event: AlarmEvent) {
-        val doc = if (event.id.isBlank()) db.collection("events").document()
-        else db.collection("events").document(event.id)
+        val doc = if (event.id.isBlank()) {
+            db.collection("events").document()
+        } else {
+            db.collection("events").document(event.id)
+        }
         event.id = doc.id
         doc.set(event)
     }
@@ -123,11 +149,13 @@ object Repo {
         db.collection("events")
             .whereEqualTo("ownerPhone", ownerPhone)
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(
-                    s.documents.mapNotNull { d ->
-                        d.toObject(AlarmEvent::class.java)?.apply { id = d.id }
-                    }.sortedByDescending { it.firedAt }
-                )
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d ->
+                            d.toObject(AlarmEvent::class.java)?.apply { id = d.id }
+                        }.sortedByDescending { it.firedAt }
+                    )
+                }
             }
 
     // ---- 메시지 (채팅 / 긴급팝업 / 테스트) ----
@@ -136,8 +164,12 @@ object Repo {
         val doc = db.collection("messages").document()
         doc.set(
             Message(
-                id = doc.id, fromPhone = from, toPhone = to, text = text,
-                kind = kind, sentAt = System.currentTimeMillis(),
+                id = doc.id,
+                fromPhone = from,
+                toPhone = to,
+                text = text,
+                kind = kind,
+                sentAt = System.currentTimeMillis()
             )
         )
         return doc.id
@@ -148,11 +180,16 @@ object Repo {
         db.collection("messages")
             .whereIn("fromPhone", listOf(me, peer))
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(
-                    s.documents.mapNotNull { d -> d.toObject(Message::class.java)?.apply { id = d.id } }
-                        .filter { (it.fromPhone == me && it.toPhone == peer) || (it.fromPhone == peer && it.toPhone == me) }
-                        .sortedBy { it.sentAt }
-                )
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d -> d.toObject(Message::class.java)?.apply { id = d.id } }
+                            .filter {
+                                (it.fromPhone == me && it.toPhone == peer) ||
+                                    (it.fromPhone == peer && it.toPhone == me)
+                            }
+                            .sortedBy { it.sentAt }
+                    )
+                }
             }
 
     /** 나에게 온, 아직 전달 확인 안 된 메시지 (수신 기기 서비스가 구독) */
@@ -161,9 +198,13 @@ object Repo {
             .whereEqualTo("toPhone", me)
             .whereEqualTo("deliveredAt", 0L)
             .addSnapshotListener { s, _ ->
-                if (s != null) onChange(s.documents.mapNotNull { d ->
-                    d.toObject(Message::class.java)?.apply { id = d.id }
-                })
+                if (s != null) {
+                    onChange(
+                        s.documents.mapNotNull { d ->
+                            d.toObject(Message::class.java)?.apply { id = d.id }
+                        }
+                    )
+                }
             }
 
     fun markDelivered(messageId: String) {

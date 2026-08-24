@@ -62,6 +62,5 @@ class Prefs(context: Context) {
         sp.edit().putString("stopped_$alarmId", LocalDate.now().toString()).apply()
     }
 
-    fun isStoppedToday(alarmId: String): Boolean =
-        sp.getString("stopped_$alarmId", null) == LocalDate.now().toString()
+    fun isStoppedToday(alarmId: String): Boolean = sp.getString("stopped_$alarmId", null) == LocalDate.now().toString()
 }

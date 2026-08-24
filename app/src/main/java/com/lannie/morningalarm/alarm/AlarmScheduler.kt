@@ -55,7 +55,9 @@ object AlarmScheduler {
         val canExact = Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()
         if (canExact) {
             val show = PendingIntent.getActivity(
-                context, 0, Intent(context, MainActivity::class.java),
+                context,
+                0,
+                Intent(context, MainActivity::class.java),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             am.setAlarmClock(AlarmManager.AlarmClockInfo(timeMillis, show), pi)
@@ -87,7 +89,9 @@ object AlarmScheduler {
             .putExtra("ringIndex", ringIndex)
         val requestCode = alarmId.hashCode() * 31 + ringIndex
         return PendingIntent.getBroadcast(
-            context, requestCode, intent,
+            context,
+            requestCode,
+            intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
     }

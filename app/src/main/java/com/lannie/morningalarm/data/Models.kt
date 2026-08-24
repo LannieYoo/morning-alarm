@@ -1,10 +1,7 @@
 package com.lannie.morningalarm.data
 
 /** 그만 울리기용 질문/정답 쌍 (최대 10개) */
-data class Question(
-    var q: String = "",
-    var a: String = "",
-)
+data class Question(var q: String = "", var a: String = "")
 
 /** 엄마가 만드는 알람. 딸 기기에 동기화되어 로컬 AlarmManager로 예약된다. */
 data class Alarm(
@@ -22,7 +19,7 @@ data class Alarm(
     /** 반복 간격(분) */
     var intervalMin: Int = 5,
     var questions: List<Question> = emptyList(),
-    var updatedAt: Long = 0L,
+    var updatedAt: Long = 0L
 )
 
 /** 알람이 울릴 때마다 1건 기록. 딸이 반응하면 dismissedAt이 채워진다. */
@@ -41,7 +38,7 @@ data class AlarmEvent(
     /** 질문 정답을 맞혔는지 */
     var answered: Boolean = false,
     /** 오늘 하루 종료 처리됐는지 */
-    var stoppedForDay: Boolean = false,
+    var stoppedForDay: Boolean = false
 )
 
 /** 채팅/긴급팝업/테스트 메시지 */
@@ -54,7 +51,7 @@ data class Message(
     var kind: String = "chat",
     var sentAt: Long = 0L,
     var deliveredAt: Long = 0L,
-    var readAt: Long = 0L,
+    var readAt: Long = 0L
 )
 
 /** 발신자(엄마) → 수신자(딸) 연결 요청 */
@@ -65,7 +62,7 @@ data class PairRequest(
     var toPhone: String = "",
     /** pending | accepted | rejected */
     var status: String = "pending",
-    var createdAt: Long = 0L,
+    var createdAt: Long = 0L
 )
 
 object Kind {

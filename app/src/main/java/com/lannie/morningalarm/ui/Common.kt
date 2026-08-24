@@ -32,27 +32,26 @@ object TzState {
 
     var zoneId by mutableStateOf(SEOUL)
 
-    fun timeZone(): TimeZone =
-        if (zoneId == LOCAL) TimeZone.getDefault() else TimeZone.getTimeZone(zoneId)
+    fun timeZone(): TimeZone = if (zoneId == LOCAL) TimeZone.getDefault() else TimeZone.getTimeZone(zoneId)
 
     fun label(): String = if (zoneId == LOCAL) "현지 시간" else "한국시간"
 }
 
-fun fmtDateTime(ms: Long): String =
-    SimpleDateFormat("M/d (E) HH:mm", Locale.KOREA)
-        .apply { timeZone = TzState.timeZone() }
-        .format(Date(ms))
+fun fmtDateTime(ms: Long): String = SimpleDateFormat("M/d (E) HH:mm", Locale.KOREA)
+    .apply { timeZone = TzState.timeZone() }
+    .format(Date(ms))
 
-fun fmtTimeShort(ms: Long): String =
-    SimpleDateFormat("HH:mm", Locale.KOREA)
-        .apply { timeZone = TzState.timeZone() }
-        .format(Date(ms))
+fun fmtTimeShort(ms: Long): String = SimpleDateFormat("HH:mm", Locale.KOREA)
+    .apply { timeZone = TzState.timeZone() }
+    .format(Date(ms))
 
 private val DAY_NAMES = listOf("월", "화", "수", "목", "금", "토", "일")
 
-fun daysLabel(days: List<Int>): String =
-    if (days.isEmpty()) "매일"
-    else days.sorted().joinToString("·") { DAY_NAMES[it - 1] }
+fun daysLabel(days: List<Int>): String = if (days.isEmpty()) {
+    "매일"
+} else {
+    days.sorted().joinToString("·") { DAY_NAMES[it - 1] }
+}
 
 fun two(n: Int): String = n.toString().padStart(2, '0')
 
@@ -66,7 +65,7 @@ fun WarnBanner(text: String, onClick: () -> Unit = {}) {
             .clip(RoundedCornerShape(10.dp))
             .background(Color(0xFFFFF3CD))
             .clickable { onClick() }
-            .padding(12.dp),
+            .padding(12.dp)
     ) {
         Text(text, color = Color(0xFF7A5C00), fontSize = 13.sp)
     }
