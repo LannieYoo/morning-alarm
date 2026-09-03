@@ -107,7 +107,7 @@ fun Home(prefs: Prefs) {
 /** 상대의 users 문서에서 헬스체크가 전부 OK인지 */
 fun healthAllOk(h: Map<String, Any>?): Boolean {
     if (h == null) return true
-    val keys = listOf("notifOk", "exactOk", "batteryOk", "fullscreenOk", "dndOk")
+    val keys = listOf("notifOk", "exactOk", "batteryOk", "fullscreenOk", "overlayOk", "dndOk")
     return keys.all { (h[it] as? Boolean) != false }
 }
 

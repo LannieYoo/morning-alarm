@@ -88,7 +88,10 @@ class RingPlayerService : Service() {
             }
         }
 
-        startForegroundWithNotification(text, alarmId, eventId, type, messageId, ringIndex, ownerName)
+        val full = startForegroundWithNotification(text, alarmId, eventId, type, messageId, ringIndex, ownerName)
+        // 화면이 켜져 있어 전체 화면 알림이 헤드업으로만 뜨는 경우를 대비해 직접 띄운다
+        // ("다른 앱 위에 표시" 권한이 있으면 다른 앱 사용 중에도 바로 뜸)
+        runCatching { startActivity(full) }
         acquireWakeLock()
         raiseAlarmVolume()
         startVibration()
@@ -110,7 +113,7 @@ class RingPlayerService : Service() {
         messageId: String,
         ringIndex: Int,
         ownerName: String
-    ) {
+    ): Intent {
         val full = Intent(this, RingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra("text", text)
@@ -148,6 +151,7 @@ class RingPlayerService : Service() {
         } else {
             startForeground(NOTIF_ID, notif)
         }
+        return full
     }
 
     private fun acquireWakeLock() {

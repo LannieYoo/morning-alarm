@@ -19,17 +19,20 @@ data class HealthStatus(
     val exactOk: Boolean,
     val batteryOk: Boolean,
     val fullscreenOk: Boolean,
+    /** "다른 앱 위에 표시" — 폰을 쓰는 중에도 알람/긴급 화면을 바로 띄우려면 필요 */
+    val overlayOk: Boolean,
     val dndOk: Boolean,
     val alarmVolumePct: Int
 ) {
     val allOk: Boolean
-        get() = notifOk && exactOk && batteryOk && fullscreenOk && dndOk
+        get() = notifOk && exactOk && batteryOk && fullscreenOk && overlayOk && dndOk
 
     fun toMap(): Map<String, Any> = mapOf(
         "notifOk" to notifOk,
         "exactOk" to exactOk,
         "batteryOk" to batteryOk,
         "fullscreenOk" to fullscreenOk,
+        "overlayOk" to overlayOk,
         "dndOk" to dndOk,
         "alarmVolumePct" to alarmVolumePct,
         "updatedAt" to System.currentTimeMillis()
@@ -47,6 +50,7 @@ object Health {
         val exactOk = if (Build.VERSION.SDK_INT >= 31) am.canScheduleExactAlarms() else true
         val batteryOk = pm.isIgnoringBatteryOptimizations(context.packageName)
         val fullscreenOk = if (Build.VERSION.SDK_INT >= 34) nm.canUseFullScreenIntent() else true
+        val overlayOk = Settings.canDrawOverlays(context)
 
         // 방해금지: 알람까지 차단하는 모드인지 (PRIORITY까지는 알람 허용이 기본)
         val filter = nm.currentInterruptionFilter
@@ -58,7 +62,7 @@ object Health {
         val cur = audio.getStreamVolume(AudioManager.STREAM_ALARM)
         val pct = cur * 100 / max
 
-        return HealthStatus(notifOk, exactOk, batteryOk, fullscreenOk, dndOk, pct)
+        return HealthStatus(notifOk, exactOk, batteryOk, fullscreenOk, overlayOk, dndOk, pct)
     }
 
     // ---- 설정 화면으로 이동하는 인텐트들 ----
@@ -82,6 +86,11 @@ object Health {
     } else {
         null
     }
+
+    fun overlayIntent(context: Context): Intent = Intent(
+        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+        Uri.parse("package:" + context.packageName)
+    )
 
     fun soundSettingsIntent(): Intent = Intent(Settings.ACTION_SOUND_SETTINGS)
 }

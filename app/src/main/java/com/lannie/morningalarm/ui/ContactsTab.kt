@@ -257,6 +257,9 @@ fun ContactsTab(
         FixRow("배터리 최적화 제외", health.batteryOk) {
             runCatching { context.startActivity(Health.batteryIntent(context)) }
         }
+        FixRow("다른 앱 위에 표시 허용 (폰 쓰는 중에도 알람 화면 바로 뜸)", health.overlayOk) {
+            runCatching { context.startActivity(Health.overlayIntent(context)) }
+        }
         FixRow("전체 화면 알림 허용", health.fullscreenOk) {
             Health.fullscreenIntent(context)?.let { runCatching { context.startActivity(it) } }
         }
