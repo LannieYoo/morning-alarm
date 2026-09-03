@@ -4,10 +4,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -17,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lannie.morningalarm.data.Contact
@@ -25,7 +33,7 @@ import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.health.Health
 
-/** 홈: 알람 / 기록 / 메시지 / 연결·상태. 역할 구분 없이 누구나 같은 화면. */
+/** 홈: 알람 / 기록 / 메시지 / 연결. 역할 구분 없이 누구나 같은 화면. */
 @Composable
 fun Home(prefs: Prefs) {
     val context = LocalContext.current
@@ -56,13 +64,9 @@ fun Home(prefs: Prefs) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(8.dp))
-        if (!health.allOk) {
-            WarnBanner("⚠️ 지금 설정으로는 알람이 안 울릴 수 있어요 — [연결·상태] 탭에서 해결하세요") { tab = 3 }
-        }
-        if (incoming.isNotEmpty()) {
-            WarnBanner("📨 연결 요청 ${incoming.size}건 — [연결·상태] 탭에서 수락하세요") { tab = 3 }
-        }
+        Spacer(Modifier.height(4.dp))
+        if (!health.allOk) WarnBanner("⚠️ 알람 설정 확인 필요") { tab = 3 }
+        if (incoming.isNotEmpty()) WarnBanner("📨 연결 요청 ${incoming.size}건") { tab = 3 }
 
         Column(Modifier.weight(1f)) {
             when (tab) {
@@ -79,29 +83,48 @@ fun Home(prefs: Prefs) {
                 )
             }
         }
-        NavigationBar {
-            NavigationBarItem(selected = tab == 0, onClick = { tab = 0 }, icon = { Text("⏰") }, label = { Text("알람") })
-            NavigationBarItem(selected = tab == 1, onClick = { tab = 1 }, icon = { Text("📋") }, label = { Text("기록") })
-            NavigationBarItem(selected = tab == 2, onClick = {
-                tab = 2
-            }, icon = { Text("💬") }, label = { Text("메시지") })
-            NavigationBarItem(
-                selected = tab == 3,
-                onClick = {
-                    tab = 3
-                    health = Health.check(context)
-                },
-                icon = {
-                    if (incoming.isEmpty()) {
-                        Text("👥")
-                    } else {
-                        BadgedBox(badge = { Badge { Text("${incoming.size}") } }) { Text("👥") }
-                    }
-                },
-                label = { Text("연결·상태") }
-            )
+
+        NavigationBar(containerColor = Palette.Surface, tonalElevation = 0.dp) {
+            NavItem("알람", Icons.Filled.Notifications, tab == 0) { tab = 0 }
+            NavItem("기록", Icons.Filled.DateRange, tab == 1) { tab = 1 }
+            NavItem("메시지", Icons.Filled.Email, tab == 2) { tab = 2 }
+            NavItem("연결", Icons.Filled.Person, tab == 3, badge = incoming.size) {
+                tab = 3
+                health = Health.check(context)
+            }
         }
     }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.NavItem(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    badge: Int = 0,
+    onClick: () -> Unit
+) {
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            if (badge > 0) {
+                BadgedBox(badge = {
+                    Badge(containerColor = Palette.Danger) { Text("$badge") }
+                }) { Icon(icon, contentDescription = label) }
+            } else {
+                Icon(icon, contentDescription = label)
+            }
+        },
+        label = { Text(label) },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = Palette.Bg,
+            selectedTextColor = Palette.Orange,
+            indicatorColor = Palette.Orange,
+            unselectedIconColor = Palette.Muted,
+            unselectedTextColor = Palette.Muted
+        )
+    )
 }
 
 /** 상대의 users 문서에서 헬스체크가 전부 OK인지 */

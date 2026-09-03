@@ -13,7 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,8 +21,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,10 +33,7 @@ import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.util.normalizePhone
 import kotlinx.coroutines.launch
 
-/**
- * 첫 실행 화면. 이름과 내 전화번호만 있으면 시작한다 (역할 구분 없음 — 누구나 보내고 받는다).
- * 연결할 상대 번호를 함께 적으면 바로 연결 요청을 보낸다. 나중에 [연결] 탭에서 더 추가할 수 있다.
- */
+/** 첫 실행: 이름 + 내 번호. 상대 번호는 선택(적으면 바로 연결 요청). */
 @Composable
 fun OnboardingScreen(onDone: () -> Unit) {
     val context = LocalContext.current
@@ -55,44 +51,51 @@ fun OnboardingScreen(onDone: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 24.dp, vertical = 32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("⏰ 모닝콜", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Text("멀리 있어도 서로 아침을 깨워주는 가족 알람", fontSize = 14.sp, color = Color.Gray)
-        Spacer(Modifier.height(28.dp))
+        Text(
+            "MORNING CALL",
+            color = Palette.Orange,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 4.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("⏰ 모닝콜", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
+        Text("서로 깨워주는 가족 알람", fontSize = 15.sp, color = Palette.Muted)
+        Spacer(Modifier.height(36.dp))
 
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("내 이름 또는 애칭") },
+            label = { Text("이름 또는 애칭") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        Text("내 전화번호", fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
+        Label("내 전화번호")
         CountryRow(cc = myCc, onCc = { myCc = it })
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             value = myPhone,
             onValueChange = { myPhone = it },
-            label = { Text("전화번호 (예: 01012345678)") },
+            placeholder = { Text("01012345678") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
         Spacer(Modifier.height(20.dp))
 
-        Text("연결할 상대 전화번호 (선택)", fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
+        Label("연결할 상대 (선택)")
         CountryRow(cc = peerCc, onCc = { peerCc = it })
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             value = peerPhone,
             onValueChange = { peerPhone = it },
-            label = { Text("상대 전화번호") },
+            placeholder = { Text("상대 전화번호") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -100,10 +103,10 @@ fun OnboardingScreen(onDone: () -> Unit) {
 
         if (error.isNotBlank()) {
             Spacer(Modifier.height(10.dp))
-            Text(error, color = Color(0xFFC62828), fontSize = 13.sp)
+            Text(error, color = Palette.Danger, fontSize = 13.sp)
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(28.dp))
         Button(
             onClick = {
                 error = ""
@@ -122,10 +125,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         val prefs = Prefs(context)
                         prefs.myName = name.trim()
                         prefs.myPhone = normalizePhone(myCc, myPhone)
-                        Repo.upsertUser(
-                            prefs.myPhone,
-                            mapOf("phone" to prefs.myPhone, "name" to prefs.myName)
-                        )
+                        Repo.upsertUser(prefs.myPhone, mapOf("phone" to prefs.myPhone, "name" to prefs.myName))
                         if (peerPhone.isNotBlank()) {
                             val peer = normalizePhone(peerCc, peerPhone)
                             if (peer != prefs.myPhone) Repo.sendPairRequest(prefs.myPhone, prefs.myName, peer)
@@ -133,23 +133,28 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         prefs.onboarded = true
                         onDone()
                     } catch (e: Exception) {
-                        error = "연결 실패 — 인터넷을 확인하세요 (${e.message ?: ""})"
+                        error = "연결 실패 — 인터넷을 확인하세요"
                     } finally {
                         busy = false
                     }
                 }
             },
             enabled = !busy,
-            modifier = Modifier.fillMaxWidth().height(52.dp)
-        ) { Text(if (busy) "연결 중…" else "시작하기", fontSize = 17.sp) }
+            modifier = Modifier.fillMaxWidth().height(54.dp)
+        ) { Text(if (busy) "연결 중…" else "시작하기", fontSize = 17.sp, fontWeight = FontWeight.Bold) }
 
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "· 전화번호가 곧 ID예요. 비밀번호는 없어요.\n" +
-                "· 상대가 요청을 수락하면 서로 알람·메시지를 보낼 수 있어요.\n" +
-                "· 여러 명과 연결할 수 있어요.",
-            fontSize = 12.sp,
-            color = Color.Gray
-        )
+        Spacer(Modifier.height(14.dp))
+        Text("전화번호가 ID예요 · 비밀번호 없음", fontSize = 12.sp, color = Palette.Muted)
     }
+}
+
+@Composable
+private fun Label(text: String) {
+    Text(
+        text,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        color = Palette.Muted,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+    )
 }

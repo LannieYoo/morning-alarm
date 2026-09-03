@@ -17,9 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -35,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -48,7 +45,7 @@ import com.lannie.morningalarm.data.QuietRule
 import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.util.Quiet
 
-/** 알람 탭: 내가 보낸 알람(편집 가능) + 나에게 오는 알람(조회) */
+/** 알람 탭: 보낸 알람(편집) + 받은 알람(조회) */
 @Composable
 fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<String, Any>>) {
     var sent by remember { mutableStateOf(listOf<Alarm>()) }
@@ -81,69 +78,61 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
         return
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        Button(
-            onClick = {
-                editing = null
-                showEditor = true
-            },
-            enabled = contacts.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("＋ 새 알람 만들기") }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            if (contacts.isEmpty()) {
-                "먼저 [연결·상태] 탭에서 상대와 연결하세요"
-            } else {
-                "알람 시각은 받는 사람 폰의 현지 시간 기준으로 울립니다"
-            },
-            fontSize = 11.sp,
-            color = Color.Gray
-        )
-        Spacer(Modifier.height(8.dp))
+    Column(Modifier.fillMaxSize()) {
+        ScreenTitle("알람") {
+            Button(
+                onClick = {
+                    editing = null
+                    showEditor = true
+                },
+                enabled = contacts.isNotEmpty()
+            ) { Text("＋ 만들기", fontWeight = FontWeight.Bold) }
+        }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { SectionTitle("내가 보낸 알람 (${sent.size})") }
-            if (sent.isEmpty()) {
-                item { Text("아직 보낸 알람이 없어요", color = Color.Gray, modifier = Modifier.padding(12.dp)) }
-            }
-            items(sent, key = { "s" + it.id }) { alarm ->
-                val conflicts = Quiet.conflicts(rulesOf(alarm.targetPhone), alarm.days, alarm.hour, alarm.minute)
-                SentAlarmCard(
-                    alarm = alarm,
-                    targetName = contactLabel(contacts, alarm.targetPhone),
-                    conflicts = conflicts,
-                    onToggle = { on -> runCatching { Repo.saveAlarm(alarm.copy(enabled = on)) } },
-                    onEdit = {
-                        editing = alarm
-                        showEditor = true
-                    },
-                    onDelete = { runCatching { Repo.deleteAlarm(alarm.id) } }
-                )
-            }
-            item {
-                Spacer(Modifier.height(8.dp))
-                SectionTitle("나에게 오는 알람 (${received.size})")
-            }
-            if (received.isEmpty()) {
-                item { Text("아직 받은 알람이 없어요", color = Color.Gray, modifier = Modifier.padding(12.dp)) }
-            }
-            items(received, key = { "r" + it.id }) { alarm ->
-                ReceivedAlarmCard(
-                    alarm,
-                    ownerName = alarm.ownerName.ifBlank {
-                        contactLabel(contacts, alarm.ownerPhone)
+        when {
+            contacts.isEmpty() -> EmptyState("👥", "먼저 연결하세요", "[연결] 탭에서 번호로 요청")
+            sent.isEmpty() && received.isEmpty() -> EmptyState("⏰", "알람이 없어요", "＋ 만들기로 첫 알람을 보내요")
+            else -> LazyColumn(
+                Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (sent.isNotEmpty()) {
+                    item { SectionHeader("보낸 알람", sent.size) }
+                    items(sent, key = { "s" + it.id }) { alarm ->
+                        val conflicts = Quiet.conflicts(
+                            rulesOf(alarm.targetPhone),
+                            alarm.days,
+                            alarm.hour,
+                            alarm.minute
+                        )
+                        SentAlarmCard(
+                            alarm = alarm,
+                            targetName = contactLabel(contacts, alarm.targetPhone),
+                            conflicts = conflicts,
+                            onToggle = { on -> runCatching { Repo.saveAlarm(alarm.copy(enabled = on)) } },
+                            onEdit = {
+                                editing = alarm
+                                showEditor = true
+                            },
+                            onDelete = { runCatching { Repo.deleteAlarm(alarm.id) } }
+                        )
                     }
-                )
+                }
+                if (received.isNotEmpty()) {
+                    item { SectionHeader("받은 알람", received.size) }
+                    items(received, key = { "r" + it.id }) { alarm ->
+                        ReceivedAlarmCard(
+                            alarm,
+                            ownerName = alarm.ownerName.ifBlank {
+                                contactLabel(contacts, alarm.ownerPhone)
+                            }
+                        )
+                    }
+                }
+                item { Spacer(Modifier.height(16.dp)) }
             }
-            item { Spacer(Modifier.height(16.dp)) }
         }
     }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(vertical = 4.dp))
 }
 
 @Composable
@@ -155,40 +144,45 @@ private fun SentAlarmCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(
-                "→ $targetName",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
+    val accent = if (alarm.enabled) Palette.Orange else Palette.Muted
+    AppCard {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Pill("→ $targetName", Palette.OrangeDim, Palette.Orange)
+                Spacer(Modifier.weight(1f))
+                Switch(checked = alarm.enabled, onCheckedChange = onToggle)
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${two(alarm.hour)}:${two(alarm.minute)}",
-                    fontSize = 30.sp,
+                    fontSize = 40.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (alarm.enabled) MaterialTheme.colorScheme.primary else Color.Gray
+                    color = accent
                 )
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(daysLabel(alarm.days), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(14.dp))
+                Column {
                     Text(
-                        "${alarm.repeatCount}회 울림 · ${alarm.intervalMin}분 간격 · 질문 ${alarm.questions.size}개",
+                        daysLabel(alarm.days),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Palette.Text
+                    )
+                    Text(
+                        "${alarm.repeatCount}회 · ${alarm.intervalMin}분 간격" +
+                            if (alarm.questions.isNotEmpty()) " · 질문 ${alarm.questions.size}" else "",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = Palette.Muted
                     )
                 }
-                Switch(checked = alarm.enabled, onCheckedChange = onToggle)
             }
-            Text(alarm.text, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("“${alarm.text}”", fontSize = 14.sp, color = Palette.Text, modifier = Modifier.padding(top = 4.dp))
             if (conflicts.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(conflictText(targetName, alarm.days, conflicts), fontSize = 12.sp, color = Color(0xFFC62828))
+                Spacer(Modifier.height(6.dp))
+                Text(conflictText(targetName, alarm.days, conflicts), fontSize = 12.sp, color = Palette.Danger)
             }
-            Row {
-                TextButton(onClick = onEdit) { Text("수정") }
-                TextButton(onClick = onDelete) { Text("삭제", color = Color(0xFFC62828)) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onEdit) { Text("수정", color = Palette.Orange) }
+                TextButton(onClick = onDelete) { Text("삭제", color = Palette.Danger) }
             }
         }
     }
@@ -196,49 +190,51 @@ private fun SentAlarmCard(
 
 @Composable
 private fun ReceivedAlarmCard(alarm: Alarm, ownerName: String) {
-    Card {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text("← $ownerName", fontSize = 12.sp, color = Color(0xFF6A1B9A), fontWeight = FontWeight.SemiBold)
+    val accent = if (alarm.enabled) Palette.Teal else Palette.Muted
+    AppCard {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Pill("← $ownerName", Palette.TealDim, Palette.Teal)
+                Spacer(Modifier.weight(1f))
+                if (!alarm.enabled) Text("꺼짐", fontSize = 12.sp, color = Palette.Muted)
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${two(alarm.hour)}:${two(alarm.minute)}",
-                    fontSize = 30.sp,
+                    fontSize = 40.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (alarm.enabled) Color(0xFF6A1B9A) else Color.Gray
+                    color = accent
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(14.dp))
                 Column {
-                    Text(daysLabel(alarm.days), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "${alarm.repeatCount}회 울림 · ${alarm.intervalMin}분 간격" +
-                            if (alarm.questions.isNotEmpty()) " · 끄려면 질문 정답 필요" else "",
+                        daysLabel(alarm.days),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Palette.Text
+                    )
+                    Text(
+                        "${alarm.repeatCount}회 · ${alarm.intervalMin}분 간격" +
+                            if (alarm.questions.isNotEmpty()) " · 정답 필요" else "",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = Palette.Muted
                     )
                 }
             }
-            Text(alarm.text, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
-            Text(
-                if (alarm.enabled) "보낸 사람만 수정·삭제할 수 있어요" else "(꺼져 있음)",
-                fontSize = 11.sp,
-                color = Color.Gray
-            )
+            Text("“${alarm.text}”", fontSize = 14.sp, color = Palette.Text, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
 
-/**
- * 거절 시간 충돌 안내문.
- * 예) "⛔ 유진의 📚 수업시간 · 월~금 09:00~15:00 — 월·화·수·목·금에는 거절돼요"
- */
+/** 거절 시간 충돌 안내문. 예) "⛔ 유진 · 📚 수업시간 월~금 09:00~15:00" */
 fun conflictText(targetName: String, alarmDays: List<Int>, conflicts: Map<Int, QuietRule>): String {
     if (conflicts.isEmpty()) return ""
     val totalDays = if (alarmDays.isEmpty()) 7 else alarmDays.distinct().size
     val byRule = conflicts.entries.groupBy({ it.value }, { it.key })
     val parts = byRule.entries.joinToString("\n") { (rule, days) ->
-        "⛔ ${targetName}의 ${Quiet.label(rule)} — ${Quiet.daysText(days.sorted())}에는 거절돼요"
+        "⛔ ${Quiet.daysText(days.sorted())} 거절 — ${targetName}의 ${Quiet.label(rule)}"
     }
-    return if (conflicts.size >= totalDays) "$parts\n이 시간에는 알람이 전부 거절돼요. 시간을 바꿔 주세요." else parts
+    return if (conflicts.size >= totalDays) "$parts\n모든 요일이 거절돼요. 시간을 바꿔 주세요." else parts
 }
 
 // ---------------- 알람 편집 ----------------
@@ -252,8 +248,8 @@ private fun AlarmEditor(
     onCancel: () -> Unit
 ) {
     var target by remember { mutableStateOf(initial.targetPhone.ifBlank { contacts.firstOrNull()?.phone ?: "" }) }
-    var hourText by remember { mutableStateOf(initial.hour.toString()) }
-    var minuteText by remember { mutableStateOf(initial.minute.toString()) }
+    var hourText by remember { mutableStateOf(two(initial.hour)) }
+    var minuteText by remember { mutableStateOf(two(initial.minute)) }
     var text by remember { mutableStateOf(initial.text) }
     var days by remember { mutableStateOf(initial.days.toSet()) }
     var repeatCount by remember { mutableStateOf(initial.repeatCount.toFloat()) }
@@ -273,145 +269,135 @@ private fun AlarmEditor(
     val totalDays = if (days.isEmpty()) 7 else days.size
     val fullyBlocked = conflicts.isNotEmpty() && conflicts.size >= totalDays
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
-    ) {
-        Text(
-            if (initial.id.isBlank()) "새 알람" else "알람 수정",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(16.dp))
-
-        Text("누구에게", fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth()) {
-            contacts.forEach { c ->
-                FilterChip(
-                    selected = c.phone == target,
-                    onClick = { if (initial.id.isBlank()) target = c.phone },
-                    enabled = initial.id.isBlank() || c.phone == target,
-                    label = { Text(c.name.ifBlank { c.phone }) },
-                    modifier = Modifier.padding(end = 6.dp)
-                )
-            }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        ScreenTitle(if (initial.id.isBlank()) "새 알람" else "알람 수정") {
+            TextButton(onClick = onCancel) { Text("취소", color = Palette.Muted) }
         }
-        val targetRules = rulesOf(target)
-        if (targetRules.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "${targetName}의 알람 거절 시간:\n" + targetRules.joinToString("\n") { "  " + Quiet.label(it) },
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-
-        Text("시간 (받는 사람 폰 기준, 24시간제)", fontWeight = FontWeight.SemiBold)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = hourText,
-                onValueChange = { hourText = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("시") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(90.dp),
-                singleLine = true
-            )
-            Text("  :  ", fontSize = 24.sp)
-            OutlinedTextField(
-                value = minuteText,
-                onValueChange = { minuteText = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("분") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(90.dp),
-                singleLine = true
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-
-        Text("반복 요일 (선택 없으면 매일)", fontWeight = FontWeight.SemiBold)
-        DayChips(selected = days, onChange = { days = it })
-
-        if (conflicts.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Card(colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))) {
-                Text(
-                    conflictText(targetName, days.toList(), conflicts),
-                    fontSize = 13.sp,
-                    color = Color(0xFFC62828),
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            label = { Text("알람이 울릴 때 읽어줄 말 (예: 유진아 일어나! 학교 가야지)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text("이 문장을 목소리로 반복해서 읽어줘요 (무음이어도 알람 볼륨으로)", fontSize = 11.sp, color = Color.Gray)
-        Spacer(Modifier.height(16.dp))
-
-        Text("울림 횟수: ${repeatCount.toInt()}회 (끄지 않으면 반복)", fontWeight = FontWeight.SemiBold)
-        Slider(value = repeatCount, onValueChange = { repeatCount = it }, valueRange = 1f..10f, steps = 8)
-
-        Text("반복 간격: ${intervalMin.toInt()}분", fontWeight = FontWeight.SemiBold)
-        Slider(value = intervalMin, onValueChange = { intervalMin = it }, valueRange = 1f..30f, steps = 28)
-        Spacer(Modifier.height(16.dp))
-
-        Text("그만 울리기 질문 (최대 10개)", fontWeight = FontWeight.SemiBold)
-        Text(
-            "질문을 넣으면 받는 사람이 정답을 맞혀야 그날 알람이 꺼져요.\n예) Q: 우리집 첫 강아지 이름은? A: 미미",
-            fontSize = 12.sp,
-            color = Color.Gray
-        )
-        Spacer(Modifier.height(8.dp))
-        questions.forEachIndexed { i, q ->
-            Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Column(Modifier.padding(10.dp)) {
-                    OutlinedTextField(
-                        value = q.q,
-                        onValueChange = { questions[i] = q.copy(q = it) },
-                        label = { Text("질문 ${i + 1}") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(Modifier.height(6.dp))
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            // 시간 (큰 디지털 표시)
+            AppCard {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        TimeField(hourText, "시") { hourText = it }
+                        Text(
+                            ":",
+                            fontSize = 44.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Palette.Orange,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        TimeField(minuteText, "분") { minuteText = it }
+                    }
+                    Text("받는 사람 폰 시간 · 24시간제", fontSize = 11.sp, color = Palette.Muted)
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+
+            SectionHeader("누구에게")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                contacts.forEach { c ->
+                    FilterChip(
+                        selected = c.phone == target,
+                        onClick = { if (initial.id.isBlank()) target = c.phone },
+                        enabled = initial.id.isBlank() || c.phone == target,
+                        label = { Text(c.name.ifBlank { c.phone }) }
+                    )
+                }
+            }
+            val targetRules = rulesOf(target)
+            if (targetRules.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "${targetName}의 거절 시간\n" + targetRules.joinToString("\n") { "  " + Quiet.label(it) },
+                    fontSize = 12.sp,
+                    color = Palette.Muted
+                )
+            }
+
+            SectionHeader("요일 · 없으면 매일")
+            DayChips(selected = days, onChange = { days = it })
+
+            if (conflicts.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                androidx.compose.material3.Card(
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Palette.DangerDim),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        conflictText(targetName, days.toList(), conflicts),
+                        fontSize = 13.sp,
+                        color = Palette.Danger,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            SectionHeader("읽어줄 말")
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("유진아 일어나! 학교 가야지") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                "울릴 때 이 문장을 목소리로 반복해요",
+                fontSize = 11.sp,
+                color = Palette.Muted,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            SectionHeader("반복")
+            Text("${repeatCount.toInt()}회 울림", fontSize = 14.sp, color = Palette.Text, fontWeight = FontWeight.SemiBold)
+            Slider(value = repeatCount, onValueChange = { repeatCount = it }, valueRange = 1f..10f, steps = 8)
+            Text("${intervalMin.toInt()}분 간격", fontSize = 14.sp, color = Palette.Text, fontWeight = FontWeight.SemiBold)
+            Slider(value = intervalMin, onValueChange = { intervalMin = it }, valueRange = 1f..30f, steps = 28)
+
+            SectionHeader("끄기 질문 · 최대 10개")
+            Text("정답을 맞혀야 그날 알람이 꺼져요", fontSize = 12.sp, color = Palette.Muted)
+            Spacer(Modifier.height(6.dp))
+            questions.forEachIndexed { i, q ->
+                AppCard(Modifier.padding(vertical = 4.dp)) {
+                    Column {
                         OutlinedTextField(
-                            value = q.a,
-                            onValueChange = { questions[i] = q.copy(a = it) },
-                            label = { Text("정답") },
-                            modifier = Modifier.weight(1f),
+                            value = q.q,
+                            onValueChange = { questions[i] = q.copy(q = it) },
+                            label = { Text("질문 ${i + 1}") },
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
-                        TextButton(onClick = { questions.removeAt(i) }) { Text("삭제") }
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = q.a,
+                                onValueChange = { questions[i] = q.copy(a = it) },
+                                label = { Text("정답") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            TextButton(onClick = { questions.removeAt(i) }) { Text("삭제", color = Palette.Danger) }
+                        }
                     }
                 }
             }
-        }
-        if (questions.size < 10) {
-            OutlinedButton(onClick = { questions.add(Question()) }) { Text("＋ 질문 추가") }
-        }
+            if (questions.size < 10) {
+                OutlinedButton(onClick = { questions.add(Question()) }) { Text("＋ 질문") }
+            }
 
-        if (error.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Text(error, color = Color(0xFFC62828), fontSize = 13.sp)
-        }
+            if (error.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(error, color = Palette.Danger, fontSize = 13.sp)
+            }
 
-        Spacer(Modifier.height(20.dp))
-        Row {
+            Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
                     when {
                         target.isBlank() -> error = "받을 사람을 선택하세요"
-                        h == null || h !in 0..23 -> error = "시는 0~23 사이로 입력하세요"
-                        m == null || m !in 0..59 -> error = "분은 0~59 사이로 입력하세요"
-                        text.isBlank() -> error = "알람에서 읽어줄 말을 입력하세요"
-                        questions.any { it.q.isNotBlank() && it.a.isBlank() } -> error = "정답이 비어 있는 질문이 있어요"
-                        fullyBlocked -> error = "이 시간에는 ${targetName}이(가) 알람을 거절해요. 시간이나 요일을 바꿔 주세요"
+                        h == null || h !in 0..23 -> error = "시는 0~23"
+                        m == null || m !in 0..59 -> error = "분은 0~59"
+                        text.isBlank() -> error = "읽어줄 말을 입력하세요"
+                        questions.any { it.q.isNotBlank() && it.a.isBlank() } -> error = "정답이 빈 질문이 있어요"
+                        fullyBlocked -> error = "${targetName}의 거절 시간이에요. 시간이나 요일을 바꿔 주세요"
                         else -> onSave(
                             initial.copy(
                                 targetPhone = target,
@@ -427,11 +413,27 @@ private fun AlarmEditor(
                         )
                     }
                 },
-                modifier = Modifier.weight(1f)
-            ) { Text("저장") }
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("취소") }
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) { Text("저장", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(28.dp))
         }
-        Spacer(Modifier.height(24.dp))
     }
+}
+
+@Composable
+private fun TimeField(value: String, label: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onChange(it.filter { c -> c.isDigit() }.take(2)) },
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontSize = 40.sp,
+            fontWeight = FontWeight.Bold,
+            color = Palette.Text,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        ),
+        modifier = Modifier.width(110.dp),
+        singleLine = true
+    )
 }

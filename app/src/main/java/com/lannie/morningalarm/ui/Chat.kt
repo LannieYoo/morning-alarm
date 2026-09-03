@@ -21,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lannie.morningalarm.data.Contact
@@ -44,7 +42,7 @@ import com.lannie.morningalarm.data.Message
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Repo
 
-/** 메시지 탭: 상단에서 상대를 고르고 그 사람과 1:1 대화 */
+/** 메시지 탭: 상단에서 상대를 고르고 1:1 대화 */
 @Composable
 fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
     var peer by remember {
@@ -55,17 +53,14 @@ fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
     if (peer.isBlank() && contacts.isNotEmpty()) peer = contacts.first().phone
 
     Column(Modifier.fillMaxSize()) {
+        ScreenTitle("메시지")
         if (contacts.isEmpty()) {
-            Text(
-                "아직 연결된 사람이 없어요. [연결] 탭에서 번호로 연결 요청을 보내세요.",
-                color = Color.Gray,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(16.dp)
-            )
+            EmptyState("💬", "연결된 사람이 없어요", "[연결] 탭에서 번호로 요청")
             return
         }
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             contacts.forEach { c ->
                 FilterChip(
@@ -74,8 +69,7 @@ fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
                         peer = c.phone
                         prefs.lastChatPhone = c.phone
                     },
-                    label = { Text(c.name.ifBlank { c.phone }) },
-                    modifier = Modifier.padding(end = 6.dp)
+                    label = { Text(c.name.ifBlank { c.phone }) }
                 )
             }
         }
@@ -85,9 +79,7 @@ fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
 }
 
 /**
- * 1:1 양방향 채팅.
- * - 일반 메시지: 카톡처럼 말풍선 + 전달됨/읽음 표시
- * - 긴급 메시지: 상대 화면 전체를 덮는 빨간 팝업으로 전달 (🚨 버튼) — 거절 시간과 상관없이 항상 전달
+ * 1:1 양방향 채팅. 긴급(🚨)은 상대 화면 전체 팝업 — 거절 시간과 상관없이 항상 전달.
  */
 @Composable
 fun ChatScreen(me: String, myName: String, peer: String, peerName: String) {
@@ -98,7 +90,6 @@ fun ChatScreen(me: String, myName: String, peer: String, peerName: String) {
     DisposableEffect(me, peer) {
         val reg = Repo.listenChat(me, peer) { list ->
             messages = list
-            // 내가 받은 안 읽은 메시지 → 읽음 처리
             list.filter { it.toPhone == me && it.readAt == 0L }
                 .forEach { runCatching { Repo.markRead(it.id) } }
         }
@@ -110,23 +101,27 @@ fun ChatScreen(me: String, myName: String, peer: String, peerName: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(messages, key = { it.id }) { msg ->
-                MessageBubble(msg = msg, mine = msg.fromPhone == me, peerName = peerName)
+        if (messages.isEmpty()) {
+            Box(Modifier.weight(1f)) { EmptyState("👋", "$peerName 에게 첫 메시지를 보내요") }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(messages, key = { it.id }) { msg ->
+                    MessageBubble(msg = msg, mine = msg.fromPhone == me, peerName = peerName)
+                }
             }
         }
 
-        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().background(Palette.Surface).padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("$peerName 에게 메시지") },
+                    placeholder = { Text("메시지") },
                     maxLines = 3
                 )
                 Spacer(Modifier.width(8.dp))
@@ -145,7 +140,7 @@ fun ChatScreen(me: String, myName: String, peer: String, peerName: String) {
                     input = ""
                 }
             }) {
-                Text("🚨 긴급 — 상대 화면 전체 팝업으로 보내기", color = Color(0xFFD50000), fontSize = 13.sp)
+                Text("🚨 긴급으로 보내기 (전체 화면 팝업)", color = Palette.Danger, fontSize = 13.sp)
             }
         }
     }
@@ -156,34 +151,35 @@ private fun MessageBubble(msg: Message, mine: Boolean, peerName: String) {
     val urgent = msg.kind == Kind.URGENT
     val test = msg.kind == Kind.TEST_ALARM
     val bg = when {
-        urgent -> Color(0xFFFFCDD2)
-        mine -> MaterialTheme.colorScheme.primaryContainer
-        else -> Color(0xFFEDE7E3)
+        urgent -> Palette.DangerDim
+        mine -> Palette.Orange
+        else -> Palette.Surface2
+    }
+    val fg = when {
+        urgent -> Palette.Danger
+        mine -> Palette.Bg
+        else -> Palette.Text
     }
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (mine) Alignment.End else Alignment.Start
     ) {
-        if (!mine) Text(peerName, fontSize = 11.sp, color = Color.Gray)
+        if (!mine) Text(peerName, fontSize = 11.sp, color = Palette.Muted)
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(bg)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 9.dp)
         ) {
-            Text(
-                (
-                    if (urgent) {
-                        "🚨 "
-                    } else if (test) {
-                        "🔊 "
-                    } else {
-                        ""
-                    }
-                    ) + msg.text,
-                fontSize = 15.sp
-            )
+            val prefix = if (urgent) {
+                "🚨 "
+            } else if (test) {
+                "🔊 "
+            } else {
+                ""
+            }
+            Text(prefix + msg.text, fontSize = 15.sp, color = fg)
         }
         val status = buildString {
             append(fmtTimeShort(msg.sentAt))
@@ -191,13 +187,13 @@ private fun MessageBubble(msg: Message, mine: Boolean, peerName: String) {
                 append(" · ")
                 append(
                     when {
-                        msg.readAt > 0L -> "읽음 " + fmtTimeShort(msg.readAt)
+                        msg.readAt > 0L -> "읽음"
                         msg.deliveredAt > 0L -> "전달됨"
                         else -> "전송됨"
                     }
                 )
             }
         }
-        Text(status, fontSize = 10.sp, color = Color.Gray)
+        Text(status, fontSize = 10.sp, color = Palette.Muted)
     }
 }

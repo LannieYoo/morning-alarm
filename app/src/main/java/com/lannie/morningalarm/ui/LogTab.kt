@@ -5,12 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -18,8 +17,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,54 +36,67 @@ fun LogTab(prefs: Prefs) {
         onDispose { reg.remove() }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        Text(
-            "내가 보낸 알람이 언제 울렸고 상대가 언제 반응했는지 기록이에요 (${TzState.label()} 표시)",
-            fontSize = 12.sp,
-            color = Color.Gray,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-        if (events.isEmpty()) {
-            Text("아직 기록이 없어요", color = Color.Gray, modifier = Modifier.padding(16.dp))
+    Column(Modifier.fillMaxSize()) {
+        ScreenTitle("기록") {
+            Text(TzState.label(), fontSize = 12.sp, color = Palette.Muted)
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (events.isEmpty()) {
+            EmptyState("📋", "기록이 없어요", "보낸 알람이 울리면 여기 쌓여요")
+            return
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(events, key = { it.id }) { e ->
-                Card {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Row {
-                            Text(
+                val status: String
+                val color: androidx.compose.ui.graphics.Color
+                when {
+                    e.rejected -> {
+                        status = "🚫 거절 · ${e.rejectReason.ifBlank { "거절 시간" }}"
+                        color = Palette.Danger
+                    }
+                    e.dismissedAt == 0L -> {
+                        status = "😴 아직 반응 없음"
+                        color = Palette.Muted
+                    }
+                    e.stoppedForDay && e.answered -> {
+                        status = "✅ ${fmtTimeShort(e.dismissedAt)} 정답 · 오늘 종료"
+                        color = Palette.Success
+                    }
+                    e.stoppedForDay -> {
+                        status = "✅ ${fmtTimeShort(e.dismissedAt)} 확인 · 오늘 종료"
+                        color = Palette.Success
+                    }
+                    else -> {
+                        status = "🔁 ${fmtTimeShort(e.dismissedAt)} 일단 끔"
+                        color = Palette.Warn
+                    }
+                }
+                AppCard {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Pill(
                                 "→ ${e.targetName.ifBlank {
                                     prefs.contactName(e.targetPhone)
                                 }}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
+                                Palette.OrangeDim,
+                                Palette.Orange
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text(fmtDateTime(e.firedAt), fontSize = 12.sp, color = Color.Gray)
-                            Spacer(Modifier.width(6.dp))
                             if (e.type == "test") {
-                                Text("테스트", fontSize = 11.sp, color = Color(0xFF1565C0))
+                                Pill("테스트", Palette.TealDim, Palette.Teal)
                             } else if (!e.rejected) {
-                                Text("${e.ringIndex + 1}회차 울림", fontSize = 11.sp, color = Color.Gray)
+                                Pill("${e.ringIndex + 1}회차", Palette.Surface2, Palette.Muted)
                             }
+                            Spacer(Modifier.weight(1f))
+                            Text(fmtDateTime(e.firedAt), fontSize = 12.sp, color = Palette.Muted)
                         }
-                        Text(e.alarmText, fontSize = 13.sp, color = Color.DarkGray)
-                        val status = when {
-                            e.rejected -> "🚫 거절됨 — ${e.rejectReason.ifBlank { "알람 거절 시간" }}"
-                            e.dismissedAt == 0L -> "😴 아직 반응 없음"
-                            e.stoppedForDay && e.answered -> "✅ ${fmtTimeShort(e.dismissedAt)} 정답 맞히고 오늘 알람 종료"
-                            e.stoppedForDay -> "✅ ${fmtTimeShort(e.dismissedAt)} 확인함 (오늘 알람 종료)"
-                            else -> "🔁 ${fmtTimeShort(e.dismissedAt)} 일단 끔 — 잠시 후 다시 울림"
-                        }
-                        Text(
-                            status,
-                            fontSize = 13.sp,
-                            color = if (e.rejected) Color(0xFFC62828) else Color.Unspecified,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("“${e.alarmText}”", fontSize = 14.sp, color = Palette.Text)
+                        Spacer(Modifier.height(6.dp))
+                        Text(status, fontSize = 13.sp, color = color, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
+            item { Spacer(Modifier.height(16.dp)) }
         }
     }
 }
