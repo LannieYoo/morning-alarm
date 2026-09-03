@@ -65,7 +65,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("내 이름 (상대 폰에 이렇게 표시돼요. 예: 엄마, 유진)") },
+            label = { Text("내 이름 또는 애칭") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -85,7 +85,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
         )
         Spacer(Modifier.height(20.dp))
 
-        Text("연결할 상대 전화번호 (선택 — 나중에 추가해도 돼요)", fontWeight = FontWeight.SemiBold)
+        Text("연결할 상대 전화번호 (선택)", fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
         CountryRow(cc = peerCc, onCc = { peerCc = it })
         Spacer(Modifier.height(6.dp))

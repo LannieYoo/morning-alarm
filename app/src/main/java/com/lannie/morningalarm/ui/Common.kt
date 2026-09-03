@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -77,13 +79,13 @@ fun WarnBanner(text: String, onClick: () -> Unit = {}) {
     }
 }
 
-/** 국가번호 선택 (한국/캐나다 칩 + 직접 입력) */
+/** 국가번호 선택 (국기 버튼 + 직접 입력). 버튼 높이는 입력칸(56dp)과 맞춘다. */
 @Composable
 fun CountryRow(cc: String, onCc: (String) -> Unit) {
-    Row {
-        FilterChip(selected = cc == "82", onClick = { onCc("82") }, label = { Text("🇰🇷 +82 한국") })
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        FlagChip(flag = "🇰🇷", selected = cc == "82") { onCc("82") }
         Spacer(Modifier.width(8.dp))
-        FilterChip(selected = cc == "1", onClick = { onCc("1") }, label = { Text("🇨🇦 +1 캐나다") })
+        FlagChip(flag = "🇨🇦", selected = cc == "1") { onCc("1") }
         Spacer(Modifier.width(8.dp))
         OutlinedTextField(
             value = cc,
@@ -94,6 +96,16 @@ fun CountryRow(cc: String, onCc: (String) -> Unit) {
             singleLine = true
         )
     }
+}
+
+@Composable
+private fun FlagChip(flag: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(flag, fontSize = 26.sp) },
+        modifier = Modifier.height(56.dp).width(64.dp)
+    )
 }
 
 /** 요일 선택 칩 (선택 없음 = 매일) */
