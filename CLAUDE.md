@@ -22,8 +22,9 @@
 ## 빌드
 
 - 이 PC에는 Android SDK 없음 → APK는 GitHub Actions(`.github/workflows/build-apk.yml`) → Actions 탭 Artifacts에서 다운로드
-- JDK 17: `C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot` (PATH 미등록), ktlint jar: `~/.ktlint/ktlint.jar`
+- JDK 17: `C:\Program Files\Eclipse Adoptium\jdk-17.*` (PATH 미등록 — `lint.ps1`이 자동 탐색, 없으면 winget으로 설치 안내), ktlint jar: `~/.ktlint/ktlint.jar` (없으면 스크립트가 다운로드)
 - **코드 수정 후 반드시 `.\lint.ps1` 실행** (자동 수정: `.\lint.ps1 -Fix`). CI의 `lint` job도 **같은 ktlint CLI 1.3.1**을 내려받아 실행 (gradle 플러그인 안 씀 — 버전 불일치로 CI만 실패한 적 있음)
+- **단위 테스트**: `app/src/test` (JUnit4, 순수 로직만 — 전화번호 정규화·정답 비교·다음 울림 시각·요일 표시). CI `build` job이 `testDebugUnitTest`를 APK 패키징 전에 실행. 로컬엔 Android SDK가 없어 테스트도 CI에서만 돈다
 - 스택: Kotlin 2.0.20 / AGP 8.5.2 / Gradle 8.9 / Compose BOM 2024.09.03 / minSdk 26, target 34
 
 ## Firestore 컬렉션

@@ -16,14 +16,20 @@ import java.time.ZonedDateTime
  */
 object AlarmScheduler {
 
-    /** 캐시된 모든 알람의 다음 울림을 다시 예약 (동기화/재부팅 시 호출) */
+    /**
+     * 캐시된 모든 알람의 다음 울림을 다시 예약 (동기화/재부팅 시 호출).
+     * 첫 회차(ringIndex 0)만 갱신하고 진행 중인 반복 회차는 건드리지 않는다
+     * (자녀가 "일단 끄기"한 뒤 서비스가 재시작돼도 반복 울림이 사라지지 않도록).
+     * 꺼진 알람은 반복 회차까지 모두 취소한다.
+     */
     fun scheduleAll(context: Context) {
         val alarms = Prefs(context).getAlarms()
         for (alarm in alarms) {
-            cancelAll(context, alarm.id, maxRepeat = 10)
             if (alarm.enabled) {
                 val next = nextTrigger(alarm, ZonedDateTime.now())
                 scheduleAt(context, alarm.id, next.toInstant().toEpochMilli(), ringIndex = 0)
+            } else {
+                cancelAll(context, alarm.id, maxRepeat = 10)
             }
         }
     }

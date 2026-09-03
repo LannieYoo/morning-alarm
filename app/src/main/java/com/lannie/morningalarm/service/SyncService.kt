@@ -58,9 +58,10 @@ class SyncService : Service() {
             uploadHealth(prefs)
         }
 
-        // 30분마다 헬스체크 업로드
+        // 30분마다 헬스체크 업로드 (+ 첫 실행 때 오프라인이어서 익명 로그인이 안 됐다면 재시도)
         val tick = object : Runnable {
             override fun run() {
+                if (!Repo.isAuthed()) scope.launch { runCatching { Repo.ensureAuth() } }
                 uploadHealth(Prefs(this@SyncService))
                 handler.postDelayed(this, 30 * 60_000L)
             }
@@ -73,6 +74,11 @@ class SyncService : Service() {
 
         // 알람 동기화 → 로컬 캐시 + 재예약
         listeners += Repo.listenAlarmsFor(me) { alarms ->
+            // 엄마가 삭제한 알람은 로컬 예약(반복 회차 포함)도 모두 취소
+            val newIds = alarms.map { it.id }.toSet()
+            prefs.getAlarms().filter { it.id !in newIds }.forEach {
+                AlarmScheduler.cancelAll(this, it.id, maxRepeat = 10)
+            }
             prefs.saveAlarms(alarms)
             AlarmScheduler.scheduleAll(this)
         }
@@ -105,6 +111,8 @@ class SyncService : Service() {
                         type = RingPlayerService.TYPE_TEST,
                         messageId = msg.id
                     )
+                } else {
+                    showChatNotification(msg, "🔊 (놓친 테스트 알람) ")
                 }
             }
             else -> showChatNotification(msg, "")
@@ -199,7 +207,10 @@ class SyncService : Service() {
         const val NOTIF_ID = 3001
 
         fun start(context: Context) {
-            ContextCompat.startForegroundService(context, Intent(context, SyncService::class.java))
+            // Android 12+: 백그라운드에서 포그라운드 서비스 시작이 거부되면 예외가 나므로 앱이 죽지 않게 감싼다
+            runCatching {
+                ContextCompat.startForegroundService(context, Intent(context, SyncService::class.java))
+            }
         }
     }
 }

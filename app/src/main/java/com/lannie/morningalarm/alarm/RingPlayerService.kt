@@ -51,6 +51,10 @@ class RingPlayerService : Service() {
             return START_NOT_STICKY
         }
 
+        // 이미 울리는 중에 새 울림이 오면(짧은 반복 간격, 테스트 알람 등) 먼저 정리해
+        // 볼륨 원복값이 덮어써지거나 TTS가 겹치는 것을 막는다
+        if (speaking) stopRinging()
+
         val text = intent?.getStringExtra("text") ?: "일어나세요"
         val alarmId = intent?.getStringExtra("alarmId") ?: ""
         val ringIndex = intent?.getIntExtra("ringIndex", 0) ?: 0
@@ -208,8 +212,10 @@ class RingPlayerService : Service() {
                 getSystemService(AudioManager::class.java)
                     .setStreamVolume(AudioManager.STREAM_ALARM, prevVolume, 0)
             }
+            prevVolume = -1
         }
-        runCatching { wakeLock?.release() }
+        runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
+        wakeLock = null
     }
 
     override fun onDestroy() {
@@ -239,7 +245,8 @@ class RingPlayerService : Service() {
                 .putExtra("ringIndex", ringIndex)
                 .putExtra("type", type)
                 .putExtra("messageId", messageId)
-            ContextCompat.startForegroundService(context, intent)
+            // Android 12+: 백그라운드에서 포그라운드 서비스 시작이 거부되면 예외가 나므로 앱이 죽지 않게 감싼다
+            runCatching { ContextCompat.startForegroundService(context, intent) }
         }
 
         fun stop(context: Context) {

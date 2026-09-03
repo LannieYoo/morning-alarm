@@ -439,6 +439,16 @@ private fun MomStatusTab(prefs: Prefs, peerHealth: Map<String, Any>?) {
             },
             fontSize = 13.sp
         )
+        if (!prefs.paired) {
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(
+                onClick = {
+                    runCatching { Repo.sendPairRequest(prefs.myPhone, prefs.myName, prefs.peerPhone) }
+                    sentInfo = "📨 연결 요청을 다시 보냈어요 — 자녀 폰 [상태] 탭에서 수락하면 연결됩니다"
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("📨 연결 요청 다시 보내기") }
+        }
         Spacer(Modifier.height(20.dp))
 
         TimezoneSetting(prefs)

@@ -1,6 +1,7 @@
 package com.lannie.morningalarm.alarm
 
 import android.app.KeyguardManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Repo
+import com.lannie.morningalarm.util.answersMatch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -200,7 +202,7 @@ class RingActivity : ComponentActivity() {
                                 Spacer(Modifier.height(12.dp))
                                 Button(
                                     onClick = {
-                                        val ok = norm(answer) == norm(questions[qIndex].a)
+                                        val ok = answersMatch(answer, questions[qIndex].a)
                                         if (ok) {
                                             stopForDay()
                                         } else {
@@ -242,6 +244,13 @@ class RingActivity : ComponentActivity() {
         }
     }
 
+    /** singleInstance라 다음 회차 울림이 같은 화면으로 오면 새 extras(회차·기록 id)로 다시 그린다 */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        recreate()
+    }
+
     private fun turnOnScreen() {
         if (Build.VERSION.SDK_INT >= 27) {
             setShowWhenLocked(true)
@@ -249,6 +258,4 @@ class RingActivity : ComponentActivity() {
         }
         getSystemService(KeyguardManager::class.java)?.requestDismissKeyguard(this, null)
     }
-
-    private fun norm(s: String) = s.trim().lowercase().replace(" ", "")
 }

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.lannie.morningalarm.data.Prefs
+import com.lannie.morningalarm.service.SyncService
 
 /** 예약된 시각 도달 → 울림 서비스 시작 + 반복/다음 날 재예약 */
 class AlarmReceiver : BroadcastReceiver() {
@@ -12,6 +13,9 @@ class AlarmReceiver : BroadcastReceiver() {
         val ringIndex = intent.getIntExtra("ringIndex", 0)
         val prefs = Prefs(context)
         val alarm = prefs.getAlarms().find { it.id == alarmId } ?: return
+
+        // 절전 정책으로 수신 대기 서비스가 죽어 있었다면 이 기회에 되살린다 (정확한 알람 예외로 허용됨)
+        if (prefs.role == "daughter") SyncService.start(context)
 
         // 첫 회차에서 다음 날(다음 요일) 울림을 미리 예약해 둔다
         if (ringIndex == 0) {

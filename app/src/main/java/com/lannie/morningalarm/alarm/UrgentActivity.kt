@@ -45,6 +45,7 @@ class UrgentActivity : ComponentActivity() {
 
     private var vibrator: Vibrator? = null
     private var tts: TextToSpeech? = null
+    private var prevVolume = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,6 +125,7 @@ class UrgentActivity : ComponentActivity() {
 
         // 알람 스트림으로 1회 낭독 (무음이어도 들림)
         val audio = getSystemService(AudioManager::class.java)
+        prevVolume = audio.getStreamVolume(AudioManager.STREAM_ALARM)
         runCatching {
             audio.setStreamVolume(
                 AudioManager.STREAM_ALARM,
@@ -152,6 +154,13 @@ class UrgentActivity : ComponentActivity() {
             tts?.shutdown()
         }
         tts = null
+        if (prevVolume >= 0) {
+            runCatching {
+                getSystemService(AudioManager::class.java)
+                    .setStreamVolume(AudioManager.STREAM_ALARM, prevVolume, 0)
+            }
+            prevVolume = -1
+        }
     }
 
     override fun onDestroy() {
