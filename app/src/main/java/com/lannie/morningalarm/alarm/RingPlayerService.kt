@@ -29,7 +29,7 @@ import java.util.Locale
 
 /**
  * 알람 울림 서비스.
- * - 무음/진동 모드여도 알람 스트림(STREAM_ALARM)을 최대 볼륨으로 올려 TTS로 텍스트를 반복해 읽는다.
+ * - 무음/진동 모드여도 알람 스트림(STREAM_ALARM)을 최대 볼륨으로 올려 보낸 사람이 쓴 문장을 TTS로 반복해 읽는다.
  * - 통화 중에도 알람 스트림은 재생된다.
  * - 전체 화면 알림으로 RingActivity(잠금화면 위)를 띄운다.
  */
@@ -60,6 +60,8 @@ class RingPlayerService : Service() {
         val ringIndex = intent?.getIntExtra("ringIndex", 0) ?: 0
         val type = intent?.getStringExtra("type") ?: TYPE_ALARM
         val messageId = intent?.getStringExtra("messageId") ?: ""
+        val ownerPhone = intent?.getStringExtra("ownerPhone") ?: ""
+        val ownerName = (intent?.getStringExtra("ownerName") ?: "").ifBlank { "가족" }
         val prefs = Prefs(this)
 
         // 울림 기록 생성 (미리듣기 제외)
@@ -73,8 +75,10 @@ class RingPlayerService : Service() {
                             id = eventId,
                             alarmId = alarmId,
                             alarmText = text,
-                            ownerPhone = prefs.peerPhone,
+                            ownerPhone = ownerPhone,
+                            ownerName = ownerName,
                             targetPhone = prefs.myPhone,
+                            targetName = prefs.myName,
                             type = if (type == TYPE_TEST) "test" else "alarm",
                             ringIndex = ringIndex,
                             firedAt = System.currentTimeMillis()
@@ -84,7 +88,7 @@ class RingPlayerService : Service() {
             }
         }
 
-        startForegroundWithNotification(text, alarmId, eventId, type, messageId, ringIndex)
+        startForegroundWithNotification(text, alarmId, eventId, type, messageId, ringIndex, ownerName)
         acquireWakeLock()
         raiseAlarmVolume()
         startVibration()
@@ -104,7 +108,8 @@ class RingPlayerService : Service() {
         eventId: String,
         type: String,
         messageId: String,
-        ringIndex: Int
+        ringIndex: Int,
+        ownerName: String
     ) {
         val full = Intent(this, RingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -114,6 +119,7 @@ class RingPlayerService : Service() {
             putExtra("type", type)
             putExtra("messageId", messageId)
             putExtra("ringIndex", ringIndex)
+            putExtra("ownerName", ownerName)
         }
         val fullPi = PendingIntent.getActivity(
             this,
@@ -121,9 +127,14 @@ class RingPlayerService : Service() {
             full,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val title = when (type) {
+            TYPE_TEST -> "$ownerName 님의 테스트 알람"
+            TYPE_PREVIEW -> "알람 미리 듣기"
+            else -> "$ownerName 님의 모닝콜"
+        }
         val notif: Notification = NotificationCompat.Builder(this, App.CH_ALARM)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("모닝콜 알람")
+            .setContentTitle(title)
             .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -237,7 +248,9 @@ class RingPlayerService : Service() {
             text: String,
             ringIndex: Int,
             type: String,
-            messageId: String = ""
+            messageId: String = "",
+            ownerPhone: String = "",
+            ownerName: String = ""
         ) {
             val intent = Intent(context, RingPlayerService::class.java)
                 .putExtra("alarmId", alarmId)
@@ -245,6 +258,8 @@ class RingPlayerService : Service() {
                 .putExtra("ringIndex", ringIndex)
                 .putExtra("type", type)
                 .putExtra("messageId", messageId)
+                .putExtra("ownerPhone", ownerPhone)
+                .putExtra("ownerName", ownerName)
             // Android 12+: 백그라운드에서 포그라운드 서비스 시작이 거부되면 예외가 나므로 앱이 죽지 않게 감싼다
             runCatching { ContextCompat.startForegroundService(context, intent) }
         }

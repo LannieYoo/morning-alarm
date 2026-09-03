@@ -11,10 +11,9 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         AlarmScheduler.scheduleAll(context)
-        val prefs = Prefs(context)
-        if (prefs.onboarded && prefs.role == "daughter") {
-            // 일부 기기는 부팅 직후 포그라운드 서비스 시작을 제한할 수 있음
-            runCatching { SyncService.start(context) }
+        if (Prefs(context).onboarded) {
+            // 일부 기기는 부팅 직후 포그라운드 서비스 시작을 제한할 수 있음 (start()가 예외를 삼킨다)
+            SyncService.start(context)
         }
     }
 }

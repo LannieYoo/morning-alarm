@@ -52,6 +52,7 @@ class RingActivity : ComponentActivity() {
         val type = intent.getStringExtra("type") ?: RingPlayerService.TYPE_ALARM
         val messageId = intent.getStringExtra("messageId") ?: ""
         val ringIndex = intent.getIntExtra("ringIndex", 0)
+        val ownerName = (intent.getStringExtra("ownerName") ?: "").ifBlank { "가족" }
 
         val prefs = Prefs(this)
         val alarm = prefs.getAlarms().find { it.id == alarmId }
@@ -62,14 +63,7 @@ class RingActivity : ComponentActivity() {
                 var askQuestion by remember { mutableStateOf(false) }
                 var qIndex by remember {
                     mutableStateOf(
-                        if (questions.isEmpty()) {
-                            0
-                        } else {
-                            (
-                                System.currentTimeMillis() %
-                                    questions.size
-                                ).toInt()
-                        }
+                        if (questions.isEmpty()) 0 else (System.currentTimeMillis() % questions.size).toInt()
                     )
                 }
                 var answer by remember { mutableStateOf("") }
@@ -136,9 +130,9 @@ class RingActivity : ComponentActivity() {
                         Spacer(Modifier.height(8.dp))
                         Text(
                             when (type) {
-                                RingPlayerService.TYPE_TEST -> "테스트 알람"
+                                RingPlayerService.TYPE_TEST -> "$ownerName 님의 테스트 알람"
                                 RingPlayerService.TYPE_PREVIEW -> "알람 미리 듣기"
-                                else -> "엄마의 모닝콜 ⏰"
+                                else -> "$ownerName 님의 모닝콜 ⏰"
                             },
                             color = Color(0xFFFFD54F),
                             fontSize = 18.sp
@@ -202,8 +196,7 @@ class RingActivity : ComponentActivity() {
                                 Spacer(Modifier.height(12.dp))
                                 Button(
                                     onClick = {
-                                        val ok = answersMatch(answer, questions[qIndex].a)
-                                        if (ok) {
+                                        if (answersMatch(answer, questions[qIndex].a)) {
                                             stopForDay()
                                         } else {
                                             wrong = true

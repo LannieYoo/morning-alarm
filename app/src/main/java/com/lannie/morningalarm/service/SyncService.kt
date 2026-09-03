@@ -19,11 +19,14 @@ import com.lannie.morningalarm.MainActivity
 import com.lannie.morningalarm.alarm.AlarmScheduler
 import com.lannie.morningalarm.alarm.RingPlayerService
 import com.lannie.morningalarm.alarm.UrgentActivity
+import com.lannie.morningalarm.data.AlarmEvent
 import com.lannie.morningalarm.data.Kind
 import com.lannie.morningalarm.data.Message
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.health.Health
+import com.lannie.morningalarm.util.Quiet
+import java.time.ZonedDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,10 +34,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * 딸(수신) 기기의 상시 대기 서비스.
- * - 알람 동기화 → 로컬 예약
- * - 긴급 팝업 / 테스트 알람 / 채팅 실시간 수신
- * - 헬스체크 상태를 주기적으로 업로드 (엄마 화면에 표시)
+ * 모든 기기의 상시 대기 서비스 (누구나 알람을 받을 수 있으므로 역할 구분 없음).
+ * - 나에게 오는 알람 동기화 → 로컬 예약
+ * - 연락처(수락된 연결) 동기화 → 로컬 캐시
+ * - 긴급 팝업 / 테스트 알람 / 채팅 / 연결 요청 실시간 수신
+ * - 헬스체크·거절 시간 업로드 (상대 화면에 표시)
  */
 class SyncService : Service() {
 
@@ -42,6 +46,7 @@ class SyncService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val listeners = mutableListOf<ListenerRegistration>()
     private val handledMessages = mutableSetOf<String>()
+    private val notifiedRequests = mutableSetOf<String>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -55,14 +60,14 @@ class SyncService : Service() {
         scope.launch {
             runCatching { Repo.ensureAuth() }
             attachListeners(prefs)
-            uploadHealth(prefs)
+            uploadStatus(prefs)
         }
 
-        // 30분마다 헬스체크 업로드 (+ 첫 실행 때 오프라인이어서 익명 로그인이 안 됐다면 재시도)
+        // 30분마다 상태 업로드 (+ 첫 실행 때 오프라인이어서 익명 로그인이 안 됐다면 재시도)
         val tick = object : Runnable {
             override fun run() {
                 if (!Repo.isAuthed()) scope.launch { runCatching { Repo.ensureAuth() } }
-                uploadHealth(Prefs(this@SyncService))
+                uploadStatus(Prefs(this@SyncService))
                 handler.postDelayed(this, 30 * 60_000L)
             }
         }
@@ -72,9 +77,14 @@ class SyncService : Service() {
     private fun attachListeners(prefs: Prefs) {
         val me = prefs.myPhone
 
-        // 알람 동기화 → 로컬 캐시 + 재예약
+        // 연락처 동기화 (알림·울림 화면에서 이름 표시용)
+        listeners += Repo.listenContacts(me) { contacts ->
+            prefs.saveContacts(contacts)
+        }
+
+        // 나에게 오는 알람 동기화 → 로컬 캐시 + 재예약
         listeners += Repo.listenAlarmsFor(me) { alarms ->
-            // 엄마가 삭제한 알람은 로컬 예약(반복 회차 포함)도 모두 취소
+            // 보낸 사람이 삭제한 알람은 로컬 예약(반복 회차 포함)도 모두 취소
             val newIds = alarms.map { it.id }.toSet()
             prefs.getAlarms().filter { it.id !in newIds }.forEach {
                 AlarmScheduler.cancelAll(this, it.id, maxRepeat = 10)
@@ -89,42 +99,79 @@ class SyncService : Service() {
                 if (msg.id in handledMessages) continue
                 handledMessages += msg.id
                 Repo.markDelivered(msg.id)
-                handleIncoming(msg)
+                handleIncoming(msg, prefs)
+            }
+        }
+
+        // 새 연결 요청 알림
+        listeners += Repo.listenPairRequestsTo(me) { reqs ->
+            for (r in reqs) {
+                if (r.id in notifiedRequests) continue
+                notifiedRequests += r.id
+                showSimpleNotification(
+                    id = r.id.hashCode(),
+                    title = "📨 ${r.fromName.ifBlank { r.fromPhone }} 님의 연결 요청",
+                    text = "[연결] 탭에서 수락하면 서로 알람과 메시지를 보낼 수 있어요"
+                )
             }
         }
     }
 
-    private fun handleIncoming(msg: Message) {
+    private fun handleIncoming(msg: Message, prefs: Prefs) {
         // 오래 밀려 있던 메시지(10분 초과)는 팝업 대신 일반 알림으로만
         val fresh = System.currentTimeMillis() - msg.sentAt < 10 * 60_000L
+        val fromName = msg.fromName.ifBlank { prefs.contactName(msg.fromPhone) }
         when (msg.kind) {
             Kind.URGENT -> {
-                if (fresh) showUrgentFullscreen(msg) else showChatNotification(msg, "🚨 (놓친 긴급) ")
+                // 긴급은 거절 시간과 상관없이 항상 전달
+                if (fresh) showUrgentFullscreen(msg, fromName) else showChatNotification(msg, fromName, "🚨 (놓친 긴급) ")
             }
             Kind.TEST_ALARM -> {
-                if (fresh) {
-                    RingPlayerService.start(
+                val quiet = Quiet.find(prefs.getQuietRules(), ZonedDateTime.now())
+                when {
+                    quiet != null -> {
+                        // 거절 시간: 울리지 않고 보낸 사람 기록에 남긴다
+                        runCatching {
+                            Repo.createEvent(
+                                AlarmEvent(
+                                    alarmText = msg.text,
+                                    ownerPhone = msg.fromPhone,
+                                    ownerName = fromName,
+                                    targetPhone = prefs.myPhone,
+                                    targetName = prefs.myName,
+                                    type = "test",
+                                    firedAt = System.currentTimeMillis(),
+                                    rejected = true,
+                                    rejectReason = Quiet.reasonText(quiet)
+                                )
+                            )
+                        }
+                        showChatNotification(msg, fromName, "⛔ (거절 시간이라 울리지 않음) ")
+                    }
+                    fresh -> RingPlayerService.start(
                         this,
                         alarmId = "",
                         text = msg.text,
                         ringIndex = 0,
                         type = RingPlayerService.TYPE_TEST,
-                        messageId = msg.id
+                        messageId = msg.id,
+                        ownerPhone = msg.fromPhone,
+                        ownerName = fromName
                     )
-                } else {
-                    showChatNotification(msg, "🔊 (놓친 테스트 알람) ")
+                    else -> showChatNotification(msg, fromName, "🔊 (놓친 테스트 알람) ")
                 }
             }
-            else -> showChatNotification(msg, "")
+            else -> showChatNotification(msg, fromName, "")
         }
     }
 
-    private fun showUrgentFullscreen(msg: Message) {
+    private fun showUrgentFullscreen(msg: Message, fromName: String) {
         val full = Intent(this, UrgentActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra("text", msg.text)
             putExtra("messageId", msg.id)
             putExtra("sentAt", msg.sentAt)
+            putExtra("fromName", fromName)
         }
         val fullPi = PendingIntent.getActivity(
             this,
@@ -134,7 +181,7 @@ class SyncService : Service() {
         )
         val notif = NotificationCompat.Builder(this, App.CH_URGENT)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle("🚨 엄마의 긴급 메시지")
+            .setContentTitle("🚨 $fromName 님의 긴급 메시지")
             .setContentText(msg.text)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -147,29 +194,32 @@ class SyncService : Service() {
         runCatching { startActivity(full) }
     }
 
-    private fun showChatNotification(msg: Message, prefix: String) {
+    private fun showChatNotification(msg: Message, fromName: String, prefix: String) {
+        showSimpleNotification(msg.id.hashCode(), prefix + fromName, msg.text)
+    }
+
+    private fun showSimpleNotification(id: Int, title: String, text: String) {
         val pi = PendingIntent.getActivity(
             this,
             0,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val peerName = Prefs(this).peerName.ifBlank { "가족" }
         val notif = NotificationCompat.Builder(this, App.CH_CHAT)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle(prefix + peerName)
-            .setContentText(msg.text)
+            .setContentTitle(title)
+            .setContentText(text)
             .setContentIntent(pi)
             .setAutoCancel(true)
             .build()
-        runCatching { NotificationManagerCompat.from(this).notify(msg.id.hashCode(), notif) }
+        runCatching { NotificationManagerCompat.from(this).notify(id, notif) }
     }
 
-    private fun uploadHealth(prefs: Prefs) {
+    /** 헬스체크 + 거절 시간을 users/{me}에 올린다 (상대가 알람 만들 때 참고) */
+    private fun uploadStatus(prefs: Prefs) {
         if (prefs.myPhone.isBlank()) return
-        runCatching {
-            Repo.updateHealth(prefs.myPhone, Health.check(this).toMap())
-        }
+        runCatching { Repo.updateHealth(prefs.myPhone, Health.check(this).toMap()) }
+        runCatching { Repo.updateQuietRules(prefs.myPhone, prefs.getQuietRules()) }
     }
 
     private fun startForegroundQuiet() {
@@ -182,7 +232,7 @@ class SyncService : Service() {
         val notif: Notification = NotificationCompat.Builder(this, App.CH_SVC)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("모닝콜 대기 중")
-            .setContentText("엄마의 알람을 받을 수 있어요")
+            .setContentText("가족의 알람과 메시지를 받을 수 있어요")
             .setContentIntent(pi)
             .setOngoing(true)
             .build()

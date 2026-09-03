@@ -3,9 +3,14 @@ package com.lannie.morningalarm.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -14,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
@@ -24,7 +30,7 @@ import java.util.TimeZone
 /**
  * 표시 시간대 설정.
  * 기본은 한국시간(Asia/Seoul). 해외에 있으면 "local"(기기 시간대)로 전환 가능.
- * 알람이 울리는 시각 자체는 항상 수신 기기(딸 폰)의 현지 시간 기준이다.
+ * 알람이 울리는 시각 자체는 항상 받는 기기의 현지 시간 기준이다.
  */
 object TzState {
     const val SEOUL = "Asia/Seoul"
@@ -68,5 +74,40 @@ fun WarnBanner(text: String, onClick: () -> Unit = {}) {
             .padding(12.dp)
     ) {
         Text(text, color = Color(0xFF7A5C00), fontSize = 13.sp)
+    }
+}
+
+/** 국가번호 선택 (한국/캐나다 칩 + 직접 입력) */
+@Composable
+fun CountryRow(cc: String, onCc: (String) -> Unit) {
+    Row {
+        FilterChip(selected = cc == "82", onClick = { onCc("82") }, label = { Text("🇰🇷 +82 한국") })
+        Spacer(Modifier.width(8.dp))
+        FilterChip(selected = cc == "1", onClick = { onCc("1") }, label = { Text("🇨🇦 +1 캐나다") })
+        Spacer(Modifier.width(8.dp))
+        OutlinedTextField(
+            value = cc,
+            onValueChange = { onCc(it.filter { ch -> ch.isDigit() }) },
+            label = { Text("국가번호") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.width(110.dp),
+            singleLine = true
+        )
+    }
+}
+
+/** 요일 선택 칩 (선택 없음 = 매일) */
+@Composable
+fun DayChips(selected: Set<Int>, onChange: (Set<Int>) -> Unit) {
+    Row(Modifier.fillMaxWidth()) {
+        DAY_NAMES.forEachIndexed { i, label ->
+            val day = i + 1
+            FilterChip(
+                selected = selected.contains(day),
+                onClick = { onChange(if (selected.contains(day)) selected - day else selected + day) },
+                label = { Text(label, fontSize = 12.sp) },
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        }
     }
 }

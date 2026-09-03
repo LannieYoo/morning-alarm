@@ -40,6 +40,7 @@ import java.util.Locale
 /**
  * 긴급 메시지 전면 팝업.
  * 눈에 띄는 빨강-주황 전체 화면 + 강한 진동 + 알람 스트림으로 메시지 1회 낭독.
+ * 긴급 메시지는 알람 거절 시간과 상관없이 항상 표시된다.
  */
 class UrgentActivity : ComponentActivity() {
 
@@ -54,6 +55,7 @@ class UrgentActivity : ComponentActivity() {
         val text = intent.getStringExtra("text") ?: ""
         val messageId = intent.getStringExtra("messageId") ?: ""
         val sentAt = intent.getLongExtra("sentAt", System.currentTimeMillis())
+        val fromName = (intent.getStringExtra("fromName") ?: "").ifBlank { "가족" }
 
         startEffects(text)
 
@@ -75,7 +77,7 @@ class UrgentActivity : ComponentActivity() {
                         Text("🚨", fontSize = 64.sp)
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            "엄마의 긴급 메시지",
+                            "$fromName 님의 긴급 메시지",
                             color = Color.White,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold

@@ -4,18 +4,15 @@ package com.lannie.morningalarm.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,9 +35,8 @@ import com.lannie.morningalarm.util.normalizePhone
 import kotlinx.coroutines.launch
 
 /**
- * 첫 실행 화면.
- * 역할(엄마=알람 보내는 사람 / 자녀=알람 받는 사람)과 전화번호로 간단히 시작한다.
- * 엄마는 자녀 번호를 입력해 연결 요청을 보내고, 자녀가 수락하면 연결 완료.
+ * 첫 실행 화면. 이름과 내 전화번호만 있으면 시작한다 (역할 구분 없음 — 누구나 보내고 받는다).
+ * 연결할 상대 번호를 함께 적으면 바로 연결 요청을 보낸다. 나중에 [연결] 탭에서 더 추가할 수 있다.
  */
 @Composable
 fun OnboardingScreen(onDone: () -> Unit) {
@@ -48,7 +44,6 @@ fun OnboardingScreen(onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("") } // mom | daughter
     var myCc by remember { mutableStateOf("82") }
     var myPhone by remember { mutableStateOf("") }
     var peerCc by remember { mutableStateOf("82") }
@@ -64,30 +59,13 @@ fun OnboardingScreen(onDone: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Text("⏰ 모닝콜", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Text("멀리 있어도 아침을 깨워주는 가족 알람", fontSize = 14.sp, color = Color.Gray)
+        Text("멀리 있어도 서로 아침을 깨워주는 가족 알람", fontSize = 14.sp, color = Color.Gray)
         Spacer(Modifier.height(28.dp))
-
-        Text("내 역할", fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
-        Row {
-            FilterChip(
-                selected = role == "mom",
-                onClick = { role = "mom" },
-                label = { Text("알람 보내는 사람 (엄마)") }
-            )
-            Spacer(Modifier.width(8.dp))
-            FilterChip(
-                selected = role == "daughter",
-                onClick = { role = "daughter" },
-                label = { Text("알람 받는 사람 (자녀)") }
-            )
-        }
-        Spacer(Modifier.height(20.dp))
 
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("이름 (예: 엄마, 유진)") },
+            label = { Text("내 이름 (상대 폰에 이렇게 표시돼요. 예: 엄마, 유진)") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -105,22 +83,20 @@ fun OnboardingScreen(onDone: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+        Spacer(Modifier.height(20.dp))
 
-        if (role == "mom") {
-            Spacer(Modifier.height(16.dp))
-            Text("자녀 전화번호 (알람 받을 폰)", fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(6.dp))
-            CountryRow(cc = peerCc, onCc = { peerCc = it })
-            Spacer(Modifier.height(6.dp))
-            OutlinedTextField(
-                value = peerPhone,
-                onValueChange = { peerPhone = it },
-                label = { Text("자녀 전화번호") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-        }
+        Text("연결할 상대 전화번호 (선택 — 나중에 추가해도 돼요)", fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        CountryRow(cc = peerCc, onCc = { peerCc = it })
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = peerPhone,
+            onValueChange = { peerPhone = it },
+            label = { Text("상대 전화번호") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
 
         if (error.isNotBlank()) {
             Spacer(Modifier.height(10.dp))
@@ -131,10 +107,6 @@ fun OnboardingScreen(onDone: () -> Unit) {
         Button(
             onClick = {
                 error = ""
-                if (role.isBlank()) {
-                    error = "역할을 선택하세요"
-                    return@Button
-                }
                 if (name.isBlank()) {
                     error = "이름을 입력하세요"
                     return@Button
@@ -143,28 +115,20 @@ fun OnboardingScreen(onDone: () -> Unit) {
                     error = "전화번호를 입력하세요"
                     return@Button
                 }
-                if (role == "mom" && peerPhone.isBlank()) {
-                    error = "자녀 전화번호를 입력하세요"
-                    return@Button
-                }
                 busy = true
                 scope.launch {
                     try {
                         Repo.ensureAuth()
                         val prefs = Prefs(context)
-                        prefs.role = role
                         prefs.myName = name.trim()
                         prefs.myPhone = normalizePhone(myCc, myPhone)
                         Repo.upsertUser(
                             prefs.myPhone,
-                            mapOf("phone" to prefs.myPhone, "name" to prefs.myName, "role" to role)
+                            mapOf("phone" to prefs.myPhone, "name" to prefs.myName)
                         )
-                        if (role == "mom") {
-                            prefs.peerPhone = normalizePhone(peerCc, peerPhone)
-                            prefs.peerName = "자녀"
-                            Repo.sendPairRequest(prefs.myPhone, prefs.myName, prefs.peerPhone)
-                        } else {
-                            prefs.peerName = "엄마"
+                        if (peerPhone.isNotBlank()) {
+                            val peer = normalizePhone(peerCc, peerPhone)
+                            if (peer != prefs.myPhone) Repo.sendPairRequest(prefs.myPhone, prefs.myName, peer)
                         }
                         prefs.onboarded = true
                         onDone()
@@ -181,27 +145,11 @@ fun OnboardingScreen(onDone: () -> Unit) {
 
         Spacer(Modifier.height(12.dp))
         Text(
-            "· 같은 나라 번호끼리는 국가번호만 맞추면 됩니다.\n· 엄마가 보낸 연결 요청을 자녀가 수락하면 알람을 보낼 수 있어요.",
+            "· 전화번호가 곧 ID예요. 비밀번호는 없어요.\n" +
+                "· 상대가 요청을 수락하면 서로 알람·메시지를 보낼 수 있어요.\n" +
+                "· 여러 명과 연결할 수 있어요.",
             fontSize = 12.sp,
             color = Color.Gray
-        )
-    }
-}
-
-@Composable
-private fun CountryRow(cc: String, onCc: (String) -> Unit) {
-    Row {
-        FilterChip(selected = cc == "82", onClick = { onCc("82") }, label = { Text("🇰🇷 +82 한국") })
-        Spacer(Modifier.width(8.dp))
-        FilterChip(selected = cc == "1", onClick = { onCc("1") }, label = { Text("🇨🇦 +1 캐나다") })
-        Spacer(Modifier.width(8.dp))
-        OutlinedTextField(
-            value = cc,
-            onValueChange = { onCc(it.filter { ch -> ch.isDigit() }) },
-            label = { Text("국가번호") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(110.dp),
-            singleLine = true
         )
     }
 }

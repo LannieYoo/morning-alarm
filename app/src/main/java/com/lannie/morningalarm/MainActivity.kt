@@ -14,8 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.service.SyncService
-import com.lannie.morningalarm.ui.DaughterHome
-import com.lannie.morningalarm.ui.MomHome
+import com.lannie.morningalarm.ui.Home
 import com.lannie.morningalarm.ui.MorningTheme
 import com.lannie.morningalarm.ui.OnboardingScreen
 import com.lannie.morningalarm.ui.TzState
@@ -29,6 +28,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val prefs = Prefs(this)
+        prefs.migrateLegacyPair()
         TzState.zoneId = prefs.displayTz
         requestNotifPermission()
         if (prefs.onboarded) SyncService.start(this)
@@ -41,10 +41,8 @@ class MainActivity : ComponentActivity() {
                         onboarded = true
                         SyncService.start(this)
                     })
-                } else if (prefs.role == "mom") {
-                    MomHome(prefs)
                 } else {
-                    DaughterHome(prefs)
+                    Home(prefs)
                 }
             }
         }
