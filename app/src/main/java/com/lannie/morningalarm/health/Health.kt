@@ -27,6 +27,27 @@ data class HealthStatus(
     val allOk: Boolean
         get() = notifOk && exactOk && batteryOk && fullscreenOk && overlayOk && dndOk
 
+    /** 부족한 항목 이름 (배너·상대 카드에 표시) */
+    val missing: List<String>
+        get() = missingFrom(toMap())
+
+    companion object {
+        private val LABELS = listOf(
+            "notifOk" to "알림",
+            "exactOk" to "정확한 알람",
+            "batteryOk" to "배터리 최적화 제외",
+            "overlayOk" to "다른 앱 위에 표시",
+            "fullscreenOk" to "전체 화면 알림",
+            "dndOk" to "방해금지 예외"
+        )
+
+        /** users/{phone}.health 맵에서 부족한 항목 이름 */
+        fun missingFrom(h: Map<String, Any>?): List<String> {
+            if (h == null) return emptyList()
+            return LABELS.filter { (key, _) -> (h[key] as? Boolean) == false }.map { it.second }
+        }
+    }
+
     fun toMap(): Map<String, Any> = mapOf(
         "notifOk" to notifOk,
         "exactOk" to exactOk,
@@ -40,6 +61,9 @@ data class HealthStatus(
 }
 
 object Health {
+    /** users/{phone}.health 맵에서 부족한 항목 이름 (상대 카드 표시용) */
+    fun missingFrom(h: Map<String, Any>?): List<String> = HealthStatus.missingFrom(h)
+
     fun check(context: Context): HealthStatus {
         val nm = context.getSystemService(NotificationManager::class.java)
         val am = context.getSystemService(AlarmManager::class.java)

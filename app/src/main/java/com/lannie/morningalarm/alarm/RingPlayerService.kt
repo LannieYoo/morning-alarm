@@ -79,7 +79,11 @@ class RingPlayerService : Service() {
                             ownerName = ownerName,
                             targetPhone = prefs.myPhone,
                             targetName = prefs.myName,
-                            type = if (type == TYPE_TEST) "test" else "alarm",
+                            type = when (type) {
+                                TYPE_TEST -> "test"
+                                TYPE_INSTANT -> "instant"
+                                else -> "alarm"
+                            },
                             ringIndex = ringIndex,
                             firedAt = System.currentTimeMillis()
                         )
@@ -132,6 +136,7 @@ class RingPlayerService : Service() {
         )
         val title = when (type) {
             TYPE_TEST -> "$ownerName 님의 테스트 알람"
+            TYPE_INSTANT -> "⚡ $ownerName 님의 즉시 알람"
             TYPE_PREVIEW -> "알람 미리 듣기"
             else -> "$ownerName 님의 모닝콜"
         }
@@ -241,6 +246,7 @@ class RingPlayerService : Service() {
     companion object {
         const val TYPE_ALARM = "alarm"
         const val TYPE_TEST = "test"
+        const val TYPE_INSTANT = "instant"
         const val TYPE_PREVIEW = "preview"
         const val ACTION_STOP = "com.lannie.morningalarm.STOP_RING"
         const val NOTIF_ID = 2001

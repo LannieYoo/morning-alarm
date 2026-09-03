@@ -1,5 +1,6 @@
 package com.lannie.morningalarm.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -27,12 +29,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
@@ -88,7 +98,7 @@ fun ScreenTitle(text: String, trailing: @Composable () -> Unit = {}) {
     }
 }
 
-/** 섹션 제목 (작은 회색 대문자 느낌) */
+/** 섹션 제목 */
 @Composable
 fun SectionHeader(text: String, count: Int? = null) {
     Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -127,24 +137,83 @@ fun Pill(text: String, bg: Color, fg: Color) {
     )
 }
 
-/** 아무것도 없을 때 화면 가운데 크게 */
+/** 아무것도 없을 때 화면 가운데 크게. art를 주면 이모지 대신 일러스트를 그린다. */
 @Composable
-fun EmptyState(icon: String, title: String, hint: String = "") {
+fun EmptyState(icon: String, title: String, hint: String = "", art: (@Composable () -> Unit)? = null) {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(icon, fontSize = 56.sp)
-            Spacer(Modifier.height(12.dp))
+            if (art != null) art() else Text(icon, fontSize = 72.sp)
+            Spacer(Modifier.height(18.dp))
             Text(
                 title,
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Palette.Text,
                 textAlign = TextAlign.Center
             )
             if (hint.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
-                Text(hint, fontSize = 13.sp, color = Palette.Muted, textAlign = TextAlign.Center)
+                Text(hint, fontSize = 14.sp, color = Palette.Muted, textAlign = TextAlign.Center)
             }
+        }
+    }
+}
+
+private val ArtGradient = listOf(Color(0xFFEC4899), Color(0xFFF97316), Color(0xFFF59E0B))
+
+/** 곰귀 달린 알람시계 일러스트 (분홍→주황 그라데이션) */
+@Composable
+fun AlarmClockArt(size: Dp = 170.dp) {
+    Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val c = center
+        val r = w * 0.34f
+        val stroke = w * 0.15f
+        val brush = Brush.linearGradient(ArtGradient, start = Offset(0f, 0f), end = Offset(w, w))
+        // 귀
+        drawCircle(brush, radius = w * 0.115f, center = Offset(c.x - r * 0.8f, c.y - r * 0.85f))
+        drawCircle(brush, radius = w * 0.115f, center = Offset(c.x + r * 0.8f, c.y - r * 0.85f))
+        // 테두리 링
+        drawCircle(brush, radius = r, center = c, style = Stroke(stroke))
+        // 안쪽
+        drawCircle(Color(0xFFF8FAFC), radius = r - stroke / 2 + 1f, center = c)
+        // 바늘
+        drawLine(brush, start = c, end = Offset(c.x, c.y - r * 0.55f), strokeWidth = w * 0.075f, cap = StrokeCap.Round)
+        drawLine(
+            brush,
+            start = c,
+            end = Offset(c.x + r * 0.42f, c.y + r * 0.28f),
+            strokeWidth = w * 0.075f,
+            cap = StrokeCap.Round
+        )
+        drawCircle(brush, radius = w * 0.045f, center = c)
+    }
+}
+
+/** 말풍선 일러스트 */
+@Composable
+fun ChatBubbleArt(size: Dp = 160.dp) {
+    Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val brush = Brush.linearGradient(ArtGradient, start = Offset(0f, 0f), end = Offset(w, w))
+        val bubble = Size(w * 0.86f, w * 0.6f)
+        val left = w * 0.07f
+        val top = w * 0.12f
+        drawRoundRect(brush, topLeft = Offset(left, top), size = bubble, cornerRadius = CornerRadius(w * 0.16f))
+        val tail = Path().apply {
+            moveTo(left + w * 0.2f, top + bubble.height - 2f)
+            lineTo(left + w * 0.12f, top + bubble.height + w * 0.16f)
+            lineTo(left + w * 0.38f, top + bubble.height - 2f)
+            close()
+        }
+        drawPath(tail, brush)
+        val dotY = top + bubble.height / 2
+        for (i in 0..2) {
+            drawCircle(
+                Color(0xFFF8FAFC),
+                radius = w * 0.05f,
+                center = Offset(left + bubble.width * (0.3f + 0.2f * i), dotY)
+            )
         }
     }
 }

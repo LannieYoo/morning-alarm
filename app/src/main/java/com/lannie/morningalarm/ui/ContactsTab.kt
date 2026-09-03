@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -62,6 +63,7 @@ fun ContactsTab(
     var newCc by remember { mutableStateOf("82") }
     var newPhone by remember { mutableStateOf("") }
     var info by remember { mutableStateOf("") }
+    var testInfo by remember { mutableStateOf("") }
     var quietRules by remember { mutableStateOf(prefs.getQuietRules()) }
     var showQuietEditor by remember { mutableStateOf(false) }
 
@@ -87,15 +89,20 @@ fun ContactsTab(
         return
     }
 
+    // 같은 번호의 중복 요청은 하나로 보여준다
+    val incomingByPhone = incoming.groupBy { it.fromPhone }
+    val outgoingPhones = outgoing.map { it.toPhone }.distinct().filter { p -> contacts.none { it.phone == p } }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         ScreenTitle("연결") {
             Text("${prefs.myName} · ${prefs.myPhone}", fontSize = 12.sp, color = Palette.Muted)
         }
         Column(Modifier.padding(horizontal = 16.dp)) {
             // ---- 받은 요청 ----
-            if (incoming.isNotEmpty()) {
-                SectionHeader("받은 요청", incoming.size)
-                incoming.forEach { req ->
+            if (incomingByPhone.isNotEmpty()) {
+                SectionHeader("받은 요청", incomingByPhone.size)
+                incomingByPhone.forEach { (phone, reqs) ->
+                    val req = reqs.maxByOrNull { it.createdAt } ?: reqs.first()
                     AppCard(Modifier.padding(bottom = 8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -107,14 +114,15 @@ fun ContactsTab(
                                     fontWeight = FontWeight.Bold,
                                     color = Palette.Text
                                 )
-                                Text(req.fromPhone, fontSize = 12.sp, color = Palette.Muted)
+                                Text(phone, fontSize = 12.sp, color = Palette.Muted)
                             }
                             TextButton(onClick = {
-                                runCatching { Repo.rejectPairRequest(req.id) }
+                                reqs.forEach { r -> runCatching { Repo.rejectPairRequest(r.id) } }
                             }) { Text("거절", color = Palette.Muted) }
                             Button(onClick = {
-                                runCatching { Repo.acceptPairRequest(req.id, prefs.myName) }
-                            }) { Text("수락") }
+                                // 같은 번호에서 여러 번 왔어도 전부 수락 처리해 대기 목록에 남지 않게
+                                reqs.forEach { r -> runCatching { Repo.acceptPairRequest(r.id, prefs.myName) } }
+                            }) { Text("수락", fontWeight = FontWeight.Bold) }
                         }
                     }
                 }
@@ -130,6 +138,7 @@ fun ContactsTab(
 
                 @Suppress("UNCHECKED_CAST")
                 val h = data?.get("health") as? Map<String, Any>
+                val missing = Health.missingFrom(h)
                 val rules = Repo.parseQuietRules(data)
                 AppCard(Modifier.padding(bottom = 8.dp)) {
                     Column {
@@ -147,9 +156,13 @@ fun ContactsTab(
                             }
                             when {
                                 h == null -> Pill("상태 없음", Palette.Surface2, Palette.Muted)
-                                healthAllOk(h) -> Pill("준비 완료", Palette.TealDim, Palette.Teal)
+                                missing.isEmpty() -> Pill("준비 완료", Palette.TealDim, Palette.Teal)
                                 else -> Pill("설정 필요", Palette.DangerDim, Palette.Danger)
                             }
+                        }
+                        if (missing.isNotEmpty()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("⚠️ 상대 폰에서: " + missing.joinToString(" · "), fontSize = 12.sp, color = Palette.Danger)
                         }
                         if (rules.isNotEmpty()) {
                             Spacer(Modifier.height(8.dp))
@@ -167,21 +180,21 @@ fun ContactsTab(
                                         Kind.TEST_ALARM
                                     )
                                 }
-                                info = "🔊 ${c.name}에게 테스트 알람 전송"
+                                testInfo = "🔊 ${c.name}에게 테스트 알람 전송"
                             }) { Text("🔊 테스트 알람", fontSize = 12.sp) }
                             OutlinedButton(onClick = {
                                 runCatching {
                                     Repo.sendMessage(prefs.myPhone, prefs.myName, c.phone, "긴급 테스트예요", Kind.URGENT)
                                 }
-                                info = "🚨 ${c.name}에게 긴급 팝업 전송"
+                                testInfo = "🚨 ${c.name}에게 긴급 팝업 전송"
                             }) { Text("🚨 긴급 팝업", fontSize = 12.sp) }
                         }
                     }
                 }
             }
-            if (info.isNotBlank()) {
+            if (testInfo.isNotBlank()) {
                 Text(
-                    info,
+                    testInfo,
                     fontSize = 12.sp,
                     color = Palette.Success,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -204,30 +217,37 @@ fun ContactsTab(
                             singleLine = true
                         )
                         Spacer(Modifier.width(8.dp))
-                        Button(onClick = {
-                            val p = normalizePhone(newCc, newPhone)
-                            when {
-                                newPhone.isBlank() -> info = "번호를 입력하세요"
-                                p == prefs.myPhone -> info = "내 번호예요"
-                                contacts.any { it.phone == p } -> info = "이미 연결됐어요"
-                                else -> {
-                                    runCatching { Repo.sendPairRequest(prefs.myPhone, prefs.myName, p) }
-                                    newPhone = ""
-                                    info = "📨 요청 보냄 — 상대가 수락하면 연결돼요"
+                        OutlinedButton(
+                            onClick = {
+                                val p = normalizePhone(newCc, newPhone)
+                                when {
+                                    newPhone.isBlank() -> info = "번호를 입력하세요"
+                                    p == prefs.myPhone -> info = "내 번호예요"
+                                    contacts.any { it.phone == p } -> info = "이미 연결된 사람이에요"
+                                    outgoingPhones.contains(p) -> info = "이미 요청을 보냈어요 · 상대 수락 대기 중"
+                                    else -> {
+                                        runCatching { Repo.sendPairRequest(prefs.myPhone, prefs.myName, p) }
+                                        newPhone = ""
+                                        info = "📨 요청 보냄 · 상대가 수락하면 연결돼요"
+                                    }
                                 }
-                            }
-                        }) { Text("요청") }
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.Orange)
+                        ) { Text("요청") }
                     }
-                    outgoing.forEach { r ->
+                    if (info.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            info,
+                            fontSize = 12.sp,
+                            color = if (info.startsWith("📨")) Palette.Success else Palette.Warn
+                        )
+                    }
+                    outgoingPhones.forEach { p ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
-                            Text(
-                                "⏳ ${r.toPhone}",
-                                fontSize = 12.sp,
-                                color = Palette.Muted,
-                                modifier = Modifier.weight(1f)
-                            )
+                            Text("⏳ $p 수락 대기", fontSize = 12.sp, color = Palette.Muted, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                runCatching { Repo.sendPairRequest(prefs.myPhone, prefs.myName, r.toPhone) }
+                                runCatching { Repo.sendPairRequest(prefs.myPhone, prefs.myName, p) }
                                 info = "📨 다시 보냈어요"
                             }) { Text("다시 보내기", fontSize = 12.sp, color = Palette.Orange) }
                         }

@@ -132,4 +132,10 @@ object Kind {
     const val CHAT = "chat"
     const val URGENT = "urgent"
     const val TEST_ALARM = "test_alarm"
+
+    /** 예약 없이 지금 바로 울리는 알람 (거절 시간은 적용됨) */
+    const val INSTANT_ALARM = "instant_alarm"
+
+    /** 채팅 목록/안 읽음 배지에서 제외할 종류 */
+    fun isAlarmLike(kind: String): Boolean = kind == TEST_ALARM || kind == INSTANT_ALARM
 }

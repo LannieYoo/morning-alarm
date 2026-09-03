@@ -148,6 +148,7 @@ class RingActivity : ComponentActivity() {
                     Text(
                         when (type) {
                             RingPlayerService.TYPE_TEST -> "TEST ALARM"
+                            RingPlayerService.TYPE_INSTANT -> "⚡ RIGHT NOW"
                             RingPlayerService.TYPE_PREVIEW -> "PREVIEW"
                             else -> "MORNING CALL"
                         },

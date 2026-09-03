@@ -14,9 +14,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -33,25 +37,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lannie.morningalarm.data.Alarm
 import com.lannie.morningalarm.data.Contact
+import com.lannie.morningalarm.data.Kind
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Question
 import com.lannie.morningalarm.data.QuietRule
 import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.util.Quiet
+import java.time.ZonedDateTime
 
-/** 알람 탭: 보낸 알람(편집) + 받은 알람(조회) */
+/** 알람 탭: 보낸 알람(편집) + 받은 알람(조회) + 즉시 알람 */
 @Composable
 fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<String, Any>>) {
     var sent by remember { mutableStateOf(listOf<Alarm>()) }
     var received by remember { mutableStateOf(prefs.getAlarms()) }
     var editing by remember { mutableStateOf<Alarm?>(null) }
     var showEditor by remember { mutableStateOf(false) }
+    var showInstant by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf("") }
 
     DisposableEffect(Unit) {
         val a = Repo.listenAlarmsOwned(prefs.myPhone) { sent = it.sortedBy { x -> x.hour * 60 + x.minute } }
@@ -77,9 +87,28 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
         )
         return
     }
+    if (showInstant) {
+        InstantAlarmScreen(
+            prefs = prefs,
+            contacts = contacts,
+            rulesOf = ::rulesOf,
+            onSent = { name ->
+                info = "⚡ $name 에게 지금 알람을 보냈어요"
+                showInstant = false
+            },
+            onCancel = { showInstant = false }
+        )
+        return
+    }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("알람") {
+            OutlinedButton(
+                onClick = { showInstant = true },
+                enabled = contacts.isNotEmpty(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.Teal)
+            ) { Text("⚡ 지금", fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.width(8.dp))
             Button(
                 onClick = {
                     editing = null
@@ -88,10 +117,19 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
                 enabled = contacts.isNotEmpty()
             ) { Text("＋ 만들기", fontWeight = FontWeight.Bold) }
         }
+        if (info.isNotBlank()) {
+            Text(
+                info,
+                fontSize = 13.sp,
+                color = Palette.Success,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
 
         when {
-            contacts.isEmpty() -> EmptyState("👥", "먼저 연결하세요", "[연결] 탭에서 번호로 요청")
-            sent.isEmpty() && received.isEmpty() -> EmptyState("⏰", "알람이 없어요", "＋ 만들기로 첫 알람을 보내요")
+            contacts.isEmpty() -> EmptyState("👥", "먼저 연결하세요", "[연결] 탭에서 번호로 요청", art = { AlarmClockArt() })
+            sent.isEmpty() && received.isEmpty() ->
+                EmptyState("⏰", "알람이 없어요", "＋ 만들기로 예약하거나 ⚡ 지금 바로 보내요", art = { AlarmClockArt() })
             else -> LazyColumn(
                 Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -226,7 +264,7 @@ private fun ReceivedAlarmCard(alarm: Alarm, ownerName: String) {
     }
 }
 
-/** 거절 시간 충돌 안내문. 예) "⛔ 유진 · 📚 수업시간 월~금 09:00~15:00" */
+/** 거절 시간 충돌 안내문. 예) "⛔ 월~금 거절 — 유진의 📚 수업시간 · 월~금 09:00~15:00" */
 fun conflictText(targetName: String, alarmDays: List<Int>, conflicts: Map<Int, QuietRule>): String {
     if (conflicts.isEmpty()) return ""
     val totalDays = if (alarmDays.isEmpty()) 7 else alarmDays.distinct().size
@@ -235,6 +273,93 @@ fun conflictText(targetName: String, alarmDays: List<Int>, conflicts: Map<Int, Q
         "⛔ ${Quiet.daysText(days.sorted())} 거절 — ${targetName}의 ${Quiet.label(rule)}"
     }
     return if (conflicts.size >= totalDays) "$parts\n모든 요일이 거절돼요. 시간을 바꿔 주세요." else parts
+}
+
+// ---------------- 즉시 알람 ----------------
+
+@Composable
+private fun InstantAlarmScreen(
+    prefs: Prefs,
+    contacts: List<Contact>,
+    rulesOf: (String) -> List<QuietRule>,
+    onSent: (String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var target by remember { mutableStateOf(contacts.firstOrNull()?.phone ?: "") }
+    var text by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    val targetName = contactLabel(contacts, target)
+    val quietNow = Quiet.find(rulesOf(target), ZonedDateTime.now())
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        ScreenTitle("⚡ 지금 바로 알람") {
+            TextButton(onClick = onCancel) { Text("취소", color = Palette.Muted) }
+        }
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            Text("예약 없이 상대 폰에서 바로 울려요", fontSize = 13.sp, color = Palette.Muted)
+
+            SectionHeader("누구에게")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                contacts.forEach { c ->
+                    FilterChip(
+                        selected = c.phone == target,
+                        onClick = { target = c.phone },
+                        label = { Text(c.name.ifBlank { c.phone }) }
+                    )
+                }
+            }
+            if (quietNow != null) {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Palette.DangerDim),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "⛔ 지금은 ${targetName}의 ${Quiet.label(quietNow)}\n보내도 울리지 않고 거절로 기록돼요",
+                        fontSize = 13.sp,
+                        color = Palette.Danger,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            SectionHeader("읽어줄 말")
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("유진아 지금 일어나!") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("지금 일어나!", "전화 받아줘", "밥 먹었어?").forEach { s ->
+                    FilterChip(selected = false, onClick = { text = s }, label = { Text(s, fontSize = 12.sp) })
+                }
+            }
+
+            if (error.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(error, color = Palette.Danger, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    when {
+                        target.isBlank() -> error = "받을 사람을 선택하세요"
+                        text.isBlank() -> error = "읽어줄 말을 입력하세요"
+                        else -> {
+                            runCatching {
+                                Repo.sendMessage(prefs.myPhone, prefs.myName, target, text.trim(), Kind.INSTANT_ALARM)
+                            }
+                            onSent(targetName)
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Palette.Teal, contentColor = Palette.Bg),
+                modifier = Modifier.fillMaxWidth().height(54.dp)
+            ) { Text("⚡ 지금 울리기", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(28.dp))
+        }
+    }
 }
 
 // ---------------- 알람 편집 ----------------
@@ -319,9 +444,9 @@ private fun AlarmEditor(
 
             if (conflicts.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                androidx.compose.material3.Card(
-                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Palette.DangerDim),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Palette.DangerDim),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         conflictText(targetName, days.toList(), conflicts),
@@ -427,11 +552,11 @@ private fun TimeField(value: String, label: String, onChange: (String) -> Unit) 
         onValueChange = { onChange(it.filter { c -> c.isDigit() }.take(2)) },
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        textStyle = androidx.compose.ui.text.TextStyle(
+        textStyle = TextStyle(
             fontSize = 40.sp,
             fontWeight = FontWeight.Bold,
             color = Palette.Text,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         ),
         modifier = Modifier.width(110.dp),
         singleLine = true

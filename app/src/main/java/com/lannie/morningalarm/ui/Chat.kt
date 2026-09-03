@@ -44,7 +44,7 @@ import com.lannie.morningalarm.data.Repo
 
 /** 메시지 탭: 상단에서 상대를 고르고 1:1 대화 */
 @Composable
-fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
+fun ChatTab(prefs: Prefs, contacts: List<Contact>, unreadByPhone: Map<String, Int> = emptyMap()) {
     var peer by remember {
         mutableStateOf(
             prefs.lastChatPhone.takeIf { p -> contacts.any { it.phone == p } } ?: contacts.firstOrNull()?.phone ?: ""
@@ -55,7 +55,7 @@ fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("메시지")
         if (contacts.isEmpty()) {
-            EmptyState("💬", "연결된 사람이 없어요", "[연결] 탭에서 번호로 요청")
+            EmptyState("💬", "연결된 사람이 없어요", "[연결] 탭에서 번호로 요청", art = { ChatBubbleArt() })
             return
         }
         Row(
@@ -69,7 +69,10 @@ fun ChatTab(prefs: Prefs, contacts: List<Contact>) {
                         peer = c.phone
                         prefs.lastChatPhone = c.phone
                     },
-                    label = { Text(c.name.ifBlank { c.phone }) }
+                    label = {
+                        val n = unreadByPhone[c.phone] ?: 0
+                        Text(c.name.ifBlank { c.phone } + if (n > 0) "  💬 $n" else "")
+                    }
                 )
             }
         }
@@ -149,7 +152,7 @@ fun ChatScreen(me: String, myName: String, peer: String, peerName: String) {
 @Composable
 private fun MessageBubble(msg: Message, mine: Boolean, peerName: String) {
     val urgent = msg.kind == Kind.URGENT
-    val test = msg.kind == Kind.TEST_ALARM
+    val test = Kind.isAlarmLike(msg.kind)
     val bg = when {
         urgent -> Palette.DangerDim
         mine -> Palette.Orange

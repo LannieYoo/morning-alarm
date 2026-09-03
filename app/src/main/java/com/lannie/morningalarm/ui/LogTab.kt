@@ -83,6 +83,8 @@ fun LogTab(prefs: Prefs) {
                             Spacer(Modifier.width(8.dp))
                             if (e.type == "test") {
                                 Pill("테스트", Palette.TealDim, Palette.Teal)
+                            } else if (e.type == "instant") {
+                                Pill("⚡ 즉시", Palette.TealDim, Palette.Teal)
                             } else if (!e.rejected) {
                                 Pill("${e.ringIndex + 1}회차", Palette.Surface2, Palette.Muted)
                             }

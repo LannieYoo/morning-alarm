@@ -3,6 +3,8 @@ package com.lannie.morningalarm
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
+import android.net.Uri
 
 class App : Application() {
     override fun onCreate() {
@@ -12,7 +14,7 @@ class App : Application() {
         // 알람 채널: 소리는 TTS가 직접 재생하므로 채널 소리는 끔
         nm.createNotificationChannel(
             NotificationChannel(CH_ALARM, "알람", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "엄마가 보낸 알람"
+                description = "가족이 보낸 알람"
                 setSound(null, null)
                 enableVibration(false)
                 setBypassDnd(true)
@@ -24,8 +26,22 @@ class App : Application() {
                 setBypassDnd(true)
             }
         )
+
+        // 메시지 채널: 전용 차임음 + 진동 (진동 모드면 시스템이 소리 대신 진동만 울림).
+        // 채널 설정은 만든 뒤 바꿀 수 없어서 새 id로 만들고 예전 채널은 지운다.
+        nm.deleteNotificationChannel("chat")
+        val chime = Uri.parse("android.resource://$packageName/${R.raw.message_chime}")
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
         nm.createNotificationChannel(
-            NotificationChannel(CH_CHAT, "메시지", NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(CH_CHAT, "메시지", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "가족의 메시지 · 연결 요청"
+                setSound(chime, attrs)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 220, 120, 220)
+            }
         )
         nm.createNotificationChannel(
             NotificationChannel(CH_SVC, "백그라운드 대기", NotificationManager.IMPORTANCE_MIN).apply {
@@ -37,7 +53,7 @@ class App : Application() {
     companion object {
         const val CH_ALARM = "alarm"
         const val CH_URGENT = "urgent"
-        const val CH_CHAT = "chat"
+        const val CH_CHAT = "chat_v2"
         const val CH_SVC = "svc"
     }
 }

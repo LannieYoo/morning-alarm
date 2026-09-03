@@ -289,6 +289,19 @@ object Repo {
                 }
             }
 
+    /** 나에게 온, 아직 안 읽은 메시지 (하단 메뉴 배지용). 테스트 알람은 제외 */
+    fun listenUnread(me: String, onChange: (List<Message>) -> Unit): ListenerRegistration = db.collection("messages")
+        .whereEqualTo("toPhone", me)
+        .whereEqualTo("readAt", 0L)
+        .addSnapshotListener { s, _ ->
+            if (s != null) {
+                onChange(
+                    s.documents.mapNotNull { d -> d.toObject(Message::class.java)?.apply { id = d.id } }
+                        .filter { !Kind.isAlarmLike(it.kind) }
+                )
+            }
+        }
+
     fun markDelivered(messageId: String) {
         db.collection("messages").document(messageId)
             .set(mapOf("deliveredAt" to System.currentTimeMillis()), SetOptions.merge())
