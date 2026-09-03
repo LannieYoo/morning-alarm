@@ -68,6 +68,18 @@ class Prefs(context: Context) {
 
     fun isStoppedToday(alarmId: String): Boolean = sp.getString("stopped_$alarmId", null) == LocalDate.now().toString()
 
+    /** 보낸 사람이 알람을 수정하면 당일 종료 표시를 지워 새 시각에 다시 울리게 한다 */
+    fun clearStopped(alarmId: String) {
+        sp.edit().remove("stopped_$alarmId").apply()
+    }
+
+    /** 알람별 마지막 동기화 updatedAt (수정 감지용) */
+    fun alarmVersion(alarmId: String): Long = sp.getLong("ver_$alarmId", -1L)
+
+    fun setAlarmVersion(alarmId: String, updatedAt: Long) {
+        sp.edit().putLong("ver_$alarmId", updatedAt).apply()
+    }
+
     /**
      * 예전 버전(엄마/자녀 역할 고정) 데이터 이전: 연결돼 있던 상대를 연락처로 옮긴다.
      * 한 번만 실행되고 이후에는 아무것도 하지 않는다.

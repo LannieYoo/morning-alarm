@@ -51,6 +51,8 @@ import com.lannie.morningalarm.data.Question
 import com.lannie.morningalarm.data.QuietRule
 import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.util.Quiet
+import com.lannie.morningalarm.util.alarmPresets
+import com.lannie.morningalarm.util.vocative
 import java.time.ZonedDateTime
 
 /** 알람 탭: 보낸 알람(편집) + 받은 알람(조회) + 즉시 알람 */
@@ -324,17 +326,7 @@ private fun InstantAlarmScreen(
             }
 
             SectionHeader("읽어줄 말")
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text("유진아 지금 일어나!") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("지금 일어나!", "전화 받아줘", "밥 먹었어?").forEach { s ->
-                    FilterChip(selected = false, onClick = { text = s }, label = { Text(s, fontSize = 12.sp) })
-                }
-            }
+            MessagePicker(targetName = targetName, text = text, onText = { text = it })
 
             if (error.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
@@ -458,12 +450,7 @@ private fun AlarmEditor(
             }
 
             SectionHeader("읽어줄 말")
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text("유진아 일어나! 학교 가야지") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            MessagePicker(targetName = targetName, text = text, onText = { text = it })
             Text(
                 "울릴 때 이 문장을 목소리로 반복해요",
                 fontSize = 11.sp,
@@ -541,6 +528,47 @@ private fun AlarmEditor(
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) { Text("저장", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
             Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+/**
+ * 자주 쓰는 문장 선택 (받는 사람 이름 반영, 아/야 자동) + "기타"를 고르면 직접 입력.
+ * 기존 문장이 목록에 없으면 처음부터 기타(입력창)로 연다.
+ */
+@Composable
+private fun MessagePicker(targetName: String, text: String, onText: (String) -> Unit) {
+    val presets = alarmPresets(targetName)
+    var custom by remember(targetName) { mutableStateOf(text.isNotBlank() && text !in presets) }
+    Column {
+        presets.forEach { p ->
+            FilterChip(
+                selected = !custom && text == p,
+                onClick = {
+                    custom = false
+                    onText(p)
+                },
+                label = { Text(p, fontSize = 13.sp) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        FilterChip(
+            selected = custom,
+            onClick = {
+                custom = true
+                if (text in presets) onText("")
+            },
+            label = { Text("✏️ 기타 (직접 입력)", fontSize = 13.sp) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (custom) {
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = text,
+                onValueChange = onText,
+                placeholder = { Text("${vocative(targetName)} 일어나! 학교 가야지") },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

@@ -53,7 +53,9 @@ data class AlarmEvent(
     /** 받는 사람의 알람 거절 시간이라 울리지 않음 */
     var rejected: Boolean = false,
     /** 거절 사유 표시용 (예: "수업시간 · 월~금 09:00~15:00") */
-    var rejectReason: String = ""
+    var rejectReason: String = "",
+    /** 받는 사람이 5분 전 예고에서 취소함 (firedAt = 원래 알람 시각) */
+    var cancelled: Boolean = false
 )
 
 /** 채팅/긴급팝업/테스트 메시지 */

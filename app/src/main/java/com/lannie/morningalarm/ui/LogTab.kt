@@ -49,6 +49,11 @@ fun LogTab(prefs: Prefs) {
                 val status: String
                 val color: androidx.compose.ui.graphics.Color
                 when {
+                    e.cancelled -> {
+                        status = "❌ 취소됨 · 알람 5분 전에 ${fmtTimeShort(e.dismissedAt)} 취소" +
+                            if (e.answered) " (정답 입력)" else ""
+                        color = Palette.Danger
+                    }
                     e.rejected -> {
                         status = "🚫 거절 · ${e.rejectReason.ifBlank { "거절 시간" }}"
                         color = Palette.Danger
@@ -85,7 +90,7 @@ fun LogTab(prefs: Prefs) {
                                 Pill("테스트", Palette.TealDim, Palette.Teal)
                             } else if (e.type == "instant") {
                                 Pill("⚡ 즉시", Palette.TealDim, Palette.Teal)
-                            } else if (!e.rejected) {
+                            } else if (!e.rejected && !e.cancelled) {
                                 Pill("${e.ringIndex + 1}회차", Palette.Surface2, Palette.Muted)
                             }
                             Spacer(Modifier.weight(1f))

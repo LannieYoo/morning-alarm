@@ -1,7 +1,6 @@
 package com.lannie.morningalarm.alarm
 
 import android.app.KeyguardManager
-import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -135,17 +134,8 @@ class UrgentActivity : ComponentActivity() {
                 0
             )
         }
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.KOREAN
-                tts?.setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                tts?.speak("긴급 메시지. $text", TextToSpeech.QUEUE_FLUSH, null, "urgent")
-            }
+        tts = Tts.create(this) { engine ->
+            engine?.speak("긴급 메시지. $text", TextToSpeech.QUEUE_FLUSH, null, "urgent")
         }
     }
 

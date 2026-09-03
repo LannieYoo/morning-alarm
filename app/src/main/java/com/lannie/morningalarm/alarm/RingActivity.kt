@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,11 +75,13 @@ class RingActivity : ComponentActivity() {
         val alarm = prefs.getAlarms().find { it.id == alarmId }
         val questions = alarm?.questions?.filter { it.q.isNotBlank() } ?: emptyList()
         val isAlarm = type == RingPlayerService.TYPE_ALARM
-        val canSnooze = isAlarm && alarm != null && alarm.repeatCount > 1
+        // 마지막 회차: 일단 끄기 없음, 질문이 있으면 정답을 맞혀야만 꺼진다
+        val isLast = alarm == null || ringIndex + 1 >= alarm.repeatCount
+        val canSnooze = isAlarm && alarm != null && !isLast
 
         setContent {
             MorningTheme {
-                var askQuestion by remember { mutableStateOf(false) }
+                var askQuestion by remember { mutableStateOf(isAlarm && isLast && questions.isNotEmpty()) }
                 var qIndex by remember {
                     mutableStateOf(
                         if (questions.isEmpty()) 0 else (System.currentTimeMillis() % questions.size).toInt()
@@ -164,13 +167,21 @@ class RingActivity : ComponentActivity() {
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    if (canSnooze) {
+                    if (isAlarm && alarm != null && alarm.repeatCount > 1) {
                         Spacer(Modifier.height(6.dp))
-                        Pill(
-                            "${ringIndex + 1} / ${alarm!!.repeatCount}회 · ${alarm.intervalMin}분 간격",
-                            Palette.Surface2,
-                            Palette.Muted
-                        )
+                        if (isLast) {
+                            Pill(
+                                if (questions.isEmpty()) "🔔 마지막 알람" else "🔔 마지막 알람 · 정답을 맞혀야 꺼져요",
+                                Palette.DangerDim,
+                                Palette.Danger
+                            )
+                        } else {
+                            Pill(
+                                "${ringIndex + 1} / ${alarm.repeatCount}회 · ${alarm.intervalMin}분 후 다시",
+                                Palette.Surface2,
+                                Palette.Muted
+                            )
+                        }
                     }
 
                     Spacer(Modifier.weight(1f))
@@ -199,7 +210,7 @@ class RingActivity : ComponentActivity() {
 
                         askQuestion && questions.isNotEmpty() -> {
                             Text(
-                                "정답을 맞히면 오늘 알람 끝",
+                                if (isLast) "마지막 알람 · 정답을 맞히면 꺼져요" else "정답을 맞히면 오늘 알람 끝",
                                 color = Palette.Orange,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -240,10 +251,16 @@ class RingActivity : ComponentActivity() {
                                 },
                                 modifier = Modifier.fillMaxWidth().height(54.dp)
                             ) { Text("정답 확인", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                            if (canSnooze) {
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(onClick = { snooze() }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("정답 대신 일단 끄기 (${alarm!!.intervalMin}분 후 다시)", color = Palette.Muted)
+                                }
+                            }
                         }
 
                         else -> RoundActions(
-                            primaryLabel = "오늘 끝",
+                            primaryLabel = if (isLast) "끄기" else "오늘 끝",
                             primaryIcon = "✓",
                             onPrimary = { if (questions.isEmpty()) stopForDay() else askQuestion = true },
                             secondaryLabel = if (canSnooze) "일단 끄기" else null,

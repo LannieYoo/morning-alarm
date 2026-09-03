@@ -241,6 +241,27 @@ object Repo {
                 }
             }
 
+    /**
+     * 내가 보낸 알람 기록의 변화만 구독 (보낸 사람 알림용).
+     * 첫 스냅샷(기존 기록 전체)은 건너뛰고, 이후 추가/변경된 문서만 넘긴다.
+     */
+    fun listenEventChanges(ownerPhone: String, onChange: (List<AlarmEvent>) -> Unit): ListenerRegistration {
+        var first = true
+        return db.collection("events")
+            .whereEqualTo("ownerPhone", ownerPhone)
+            .addSnapshotListener { s, _ ->
+                if (s == null) return@addSnapshotListener
+                if (first) {
+                    first = false
+                    return@addSnapshotListener
+                }
+                val changed = s.documentChanges.mapNotNull { dc ->
+                    dc.document.toObject(AlarmEvent::class.java).apply { id = dc.document.id }
+                }
+                if (changed.isNotEmpty()) onChange(changed)
+            }
+    }
+
     // ---- 메시지 (채팅 / 긴급팝업 / 테스트) ----
 
     fun sendMessage(from: String, fromName: String, to: String, text: String, kind: String): String {

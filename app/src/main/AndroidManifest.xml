@@ -42,6 +42,14 @@
             android:turnScreenOn="true" />
 
         <activity
+            android:name=".alarm.PreAlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <activity
             android:name=".alarm.UrgentActivity"
             android:exported="false"
             android:excludeFromRecents="true"

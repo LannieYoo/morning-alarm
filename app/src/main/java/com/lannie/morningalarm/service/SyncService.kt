@@ -88,10 +88,24 @@ class SyncService : Service() {
             // 보낸 사람이 삭제한 알람은 로컬 예약(반복 회차 포함)도 모두 취소
             val newIds = alarms.map { it.id }.toSet()
             prefs.getAlarms().filter { it.id !in newIds }.forEach {
-                AlarmScheduler.cancelAll(this, it.id, maxRepeat = 10)
+                AlarmScheduler.cancelAll(this, it.id, maxRepeat = AlarmScheduler.MAX_REPEAT)
+            }
+            // 보낸 사람이 수정한 알람: 진행 중 반복 회차 취소 + "오늘 종료" 표시 해제 → 새 시각에 다시 울림
+            for (a in alarms) {
+                val known = prefs.alarmVersion(a.id)
+                if (known != -1L && known != a.updatedAt) {
+                    AlarmScheduler.cancelAll(this, a.id, maxRepeat = AlarmScheduler.MAX_REPEAT)
+                    prefs.clearStopped(a.id)
+                }
+                prefs.setAlarmVersion(a.id, a.updatedAt)
             }
             prefs.saveAlarms(alarms)
             AlarmScheduler.scheduleAll(this)
+        }
+
+        // 내가 보낸 알람의 반응(정답·확인·취소·거절)을 알림으로
+        listeners += Repo.listenEventChanges(me) { events ->
+            for (e in events) notifyEventChange(e)
         }
 
         // 나에게 온 새 메시지 처리
@@ -116,6 +130,25 @@ class SyncService : Service() {
                 )
             }
         }
+    }
+
+    private val notifiedEventStates = mutableSetOf<String>()
+
+    /** 받는 사람의 반응을 보낸 사람에게 알린다 (같은 상태는 한 번만) */
+    private fun notifyEventChange(e: AlarmEvent) {
+        val who = e.targetName.ifBlank { Prefs(this).contactName(e.targetPhone) }
+        val at = java.text.SimpleDateFormat("HH:mm", java.util.Locale.KOREA).format(java.util.Date(e.firedAt))
+        val (state, text) = when {
+            e.cancelled -> "cancelled" to "❌ $who 님이 $at 알람을 취소했어요"
+            e.rejected -> "rejected" to "🚫 $who 님의 거절 시간이라 울리지 않았어요 (${e.rejectReason})"
+            e.stoppedForDay && e.answered -> "answered" to "✅ $who 님이 정답을 맞히고 알람을 껐어요"
+            e.stoppedForDay -> "stopped" to "✅ $who 님이 알람을 확인했어요"
+            e.dismissedAt > 0L -> "snoozed" to "🔁 $who 님이 일단 껐어요 · 잠시 후 다시 울려요"
+            else -> return
+        }
+        val key = e.id + ":" + state
+        if (!notifiedEventStates.add(key)) return
+        showSimpleNotification(id = key.hashCode(), title = text, text = "“${e.alarmText}”")
     }
 
     private fun handleIncoming(msg: Message, prefs: Prefs) {

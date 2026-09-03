@@ -6,7 +6,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -25,7 +24,6 @@ import com.lannie.morningalarm.App
 import com.lannie.morningalarm.data.AlarmEvent
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Repo
-import java.util.Locale
 
 /**
  * 알람 울림 서비스.
@@ -191,16 +189,8 @@ class RingPlayerService : Service() {
 
     private fun startTts(text: String) {
         speaking = true
-        tts = TextToSpeech(this) { status ->
-            if (status != TextToSpeech.SUCCESS) return@TextToSpeech
-            val engine = tts ?: return@TextToSpeech
-            engine.language = Locale.KOREAN
-            engine.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
+        tts = Tts.create(this) { engine ->
+            if (engine == null || !speaking) return@create
             engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
                 override fun onError(utteranceId: String?) {}
