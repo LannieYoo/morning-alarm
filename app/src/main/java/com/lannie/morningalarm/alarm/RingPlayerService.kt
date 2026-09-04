@@ -24,6 +24,7 @@ import com.lannie.morningalarm.App
 import com.lannie.morningalarm.data.AlarmEvent
 import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Repo
+import com.lannie.morningalarm.data.SoundMode
 
 /**
  * 알람 울림 서비스.
@@ -60,6 +61,7 @@ class RingPlayerService : Service() {
         val messageId = intent?.getStringExtra("messageId") ?: ""
         val ownerPhone = intent?.getStringExtra("ownerPhone") ?: ""
         val ownerName = (intent?.getStringExtra("ownerName") ?: "").ifBlank { "가족" }
+        val soundMode = intent?.getStringExtra("soundMode") ?: SoundMode.FORCE
         val prefs = Prefs(this)
 
         // 울림 기록 생성 (미리듣기 제외)
@@ -95,9 +97,16 @@ class RingPlayerService : Service() {
         // ("다른 앱 위에 표시" 권한이 있으면 다른 앱 사용 중에도 바로 뜸)
         runCatching { startActivity(full) }
         acquireWakeLock()
-        raiseAlarmVolume()
-        startVibration()
-        startTts(text)
+
+        // 울림 방식: 무조건 소리(기본)면 볼륨 최대 + 진동 + 낭독,
+        // 폰 설정 따름이면 소리 모드→현재 볼륨으로 낭독+진동, 진동 모드→진동만, 무음→화면만
+        val ringer = getSystemService(AudioManager::class.java).ringerMode
+        val force = soundMode != SoundMode.FOLLOW
+        val speak = force || ringer == AudioManager.RINGER_MODE_NORMAL
+        val vibrate = force || ringer != AudioManager.RINGER_MODE_SILENT
+        if (force) raiseAlarmVolume()
+        if (vibrate) startVibration()
+        if (speak) startTts(text)
 
         // 회차당 최대 2분 울리고 자동 종료 (반복 회차는 AlarmReceiver가 별도 예약)
         handler.postDelayed({
@@ -250,7 +259,8 @@ class RingPlayerService : Service() {
             type: String,
             messageId: String = "",
             ownerPhone: String = "",
-            ownerName: String = ""
+            ownerName: String = "",
+            soundMode: String = SoundMode.FORCE
         ) {
             val intent = Intent(context, RingPlayerService::class.java)
                 .putExtra("alarmId", alarmId)
@@ -260,6 +270,7 @@ class RingPlayerService : Service() {
                 .putExtra("messageId", messageId)
                 .putExtra("ownerPhone", ownerPhone)
                 .putExtra("ownerName", ownerName)
+                .putExtra("soundMode", soundMode)
             // Android 12+: 백그라운드에서 포그라운드 서비스 시작이 거부되면 예외가 나므로 앱이 죽지 않게 감싼다
             runCatching { ContextCompat.startForegroundService(context, intent) }
         }

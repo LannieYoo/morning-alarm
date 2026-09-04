@@ -264,7 +264,14 @@ object Repo {
 
     // ---- 메시지 (채팅 / 긴급팝업 / 테스트) ----
 
-    fun sendMessage(from: String, fromName: String, to: String, text: String, kind: String): String {
+    fun sendMessage(
+        from: String,
+        fromName: String,
+        to: String,
+        text: String,
+        kind: String,
+        soundMode: String = SoundMode.FORCE
+    ): String {
         val doc = db.collection("messages").document()
         doc.set(
             Message(
@@ -274,6 +281,7 @@ object Repo {
                 toPhone = to,
                 text = text,
                 kind = kind,
+                soundMode = soundMode,
                 sentAt = System.currentTimeMillis()
             )
         )

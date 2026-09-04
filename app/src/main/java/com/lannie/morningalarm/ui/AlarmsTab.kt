@@ -50,6 +50,7 @@ import com.lannie.morningalarm.data.Prefs
 import com.lannie.morningalarm.data.Question
 import com.lannie.morningalarm.data.QuietRule
 import com.lannie.morningalarm.data.Repo
+import com.lannie.morningalarm.data.SoundMode
 import com.lannie.morningalarm.util.Quiet
 import com.lannie.morningalarm.util.alarmPresets
 import com.lannie.morningalarm.util.vocative
@@ -189,6 +190,8 @@ private fun SentAlarmCard(
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Pill("→ $targetName", Palette.OrangeDim, Palette.Orange)
+                Spacer(Modifier.width(6.dp))
+                SoundModePill(alarm.soundMode)
                 Spacer(Modifier.weight(1f))
                 Switch(checked = alarm.enabled, onCheckedChange = onToggle)
             }
@@ -235,6 +238,8 @@ private fun ReceivedAlarmCard(alarm: Alarm, ownerName: String) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Pill("← $ownerName", Palette.TealDim, Palette.Teal)
+                Spacer(Modifier.width(6.dp))
+                SoundModePill(alarm.soundMode)
                 Spacer(Modifier.weight(1f))
                 if (!alarm.enabled) Text("꺼짐", fontSize = 12.sp, color = Palette.Muted)
             }
@@ -288,6 +293,7 @@ private fun InstantAlarmScreen(
     onCancel: () -> Unit
 ) {
     var target by remember { mutableStateOf(contacts.firstOrNull()?.phone ?: "") }
+    var soundMode by remember { mutableStateOf(SoundMode.FORCE) }
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     val targetName = contactLabel(contacts, target)
@@ -299,6 +305,9 @@ private fun InstantAlarmScreen(
         }
         Column(Modifier.padding(horizontal = 16.dp)) {
             Text("예약 없이 상대 폰에서 바로 울려요", fontSize = 13.sp, color = Palette.Muted)
+
+            SectionHeader("울림 방식")
+            SoundModePicker(mode = soundMode, onChange = { soundMode = it })
 
             SectionHeader("누구에게")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -340,7 +349,14 @@ private fun InstantAlarmScreen(
                         text.isBlank() -> error = "읽어줄 말을 입력하세요"
                         else -> {
                             runCatching {
-                                Repo.sendMessage(prefs.myPhone, prefs.myName, target, text.trim(), Kind.INSTANT_ALARM)
+                                Repo.sendMessage(
+                                    prefs.myPhone,
+                                    prefs.myName,
+                                    target,
+                                    text.trim(),
+                                    Kind.INSTANT_ALARM,
+                                    soundMode
+                                )
                             }
                             onSent(targetName)
                         }
@@ -365,6 +381,7 @@ private fun AlarmEditor(
     onCancel: () -> Unit
 ) {
     var target by remember { mutableStateOf(initial.targetPhone.ifBlank { contacts.firstOrNull()?.phone ?: "" }) }
+    var soundMode by remember { mutableStateOf(initial.soundMode.ifBlank { SoundMode.FORCE }) }
     var hourText by remember { mutableStateOf(two(initial.hour)) }
     var minuteText by remember { mutableStateOf(two(initial.minute)) }
     var text by remember { mutableStateOf(initial.text) }
@@ -409,6 +426,9 @@ private fun AlarmEditor(
                 }
             }
             Spacer(Modifier.height(14.dp))
+
+            SectionHeader("울림 방식")
+            SoundModePicker(mode = soundMode, onChange = { soundMode = it })
 
             SectionHeader("누구에게")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -520,7 +540,8 @@ private fun AlarmEditor(
                                 days = days.sorted(),
                                 repeatCount = repeatCount.toInt(),
                                 intervalMin = intervalMin.toInt(),
-                                questions = questions.filter { it.q.isNotBlank() }
+                                questions = questions.filter { it.q.isNotBlank() },
+                                soundMode = soundMode
                             )
                         )
                     }
@@ -569,6 +590,65 @@ private fun MessagePicker(targetName: String, text: String, onText: (String) -> 
                 placeholder = { Text("${vocative(targetName)} 일어나! 학교 가야지") },
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
+
+@Composable
+private fun SoundModePill(mode: String) {
+    if (mode == SoundMode.FOLLOW) {
+        Pill("📱 폰 설정", Palette.Surface2, Palette.Muted)
+    } else {
+        Pill("🔊 무조건", Palette.DangerDim, Palette.Warn)
+    }
+}
+
+/** 울림 방식 선택: 무조건 소리(기본, 강조) / 폰 설정 따름 */
+@Composable
+private fun SoundModePicker(mode: String, onChange: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SoundModeOption(
+            selected = mode != SoundMode.FOLLOW,
+            title = "🔊 무조건 소리",
+            desc = "무음·진동 모드여도 알람 볼륨 최대로 읽어줘요 · 기본 추천",
+            accent = Palette.Orange,
+            onClick = { onChange(SoundMode.FORCE) }
+        )
+        SoundModeOption(
+            selected = mode == SoundMode.FOLLOW,
+            title = "📱 폰 설정 따름",
+            desc = "소리 모드면 소리, 진동 모드면 진동만, 무음이면 화면만",
+            accent = Palette.Teal,
+            onClick = { onChange(SoundMode.FOLLOW) }
+        )
+    }
+}
+
+@Composable
+private fun SoundModeOption(
+    selected: Boolean,
+    title: String,
+    desc: String,
+    accent: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = if (selected) accent else Palette.Surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (selected) Palette.Bg else Palette.Text
+                )
+                Text(desc, fontSize = 12.sp, color = if (selected) Palette.Bg.copy(alpha = 0.8f) else Palette.Muted)
+            }
+            Text(if (selected) "●" else "○", color = if (selected) Palette.Bg else Palette.Muted, fontSize = 18.sp)
         }
     }
 }

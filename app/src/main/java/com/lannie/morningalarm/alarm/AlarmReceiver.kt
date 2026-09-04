@@ -76,7 +76,8 @@ class AlarmReceiver : BroadcastReceiver() {
             ringIndex = ringIndex,
             type = RingPlayerService.TYPE_ALARM,
             ownerPhone = alarm.ownerPhone,
-            ownerName = alarm.ownerName
+            ownerName = alarm.ownerName,
+            soundMode = alarm.soundMode
         )
     }
 

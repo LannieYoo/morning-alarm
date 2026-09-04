@@ -28,8 +28,21 @@ data class Alarm(
     /** 반복 간격(분) */
     var intervalMin: Int = 5,
     var questions: List<Question> = emptyList(),
+    /** force(무조건 소리, 기본) | follow(폰 설정 따름) */
+    var soundMode: String = SoundMode.FORCE,
     var updatedAt: Long = 0L
 )
+
+/** 울림 방식 */
+object SoundMode {
+    /** 무음·진동 모드여도 알람 볼륨 최대로 낭독 (기본, 추천) */
+    const val FORCE = "force"
+
+    /** 폰 설정 따름: 소리 모드면 현재 볼륨으로 낭독, 진동 모드면 진동만, 무음이면 화면만 */
+    const val FOLLOW = "follow"
+
+    fun label(mode: String): String = if (mode == FOLLOW) "📱 폰 설정 따름" else "🔊 무조건 소리"
+}
 
 /** 알람이 울릴 때(또는 거절될 때)마다 1건 기록. 받는 사람이 반응하면 dismissedAt이 채워진다. */
 data class AlarmEvent(
@@ -65,8 +78,10 @@ data class Message(
     var fromName: String = "",
     var toPhone: String = "",
     var text: String = "",
-    /** chat | urgent | test_alarm */
+    /** chat | urgent | test_alarm | instant_alarm */
     var kind: String = "chat",
+    /** 즉시/테스트 알람의 울림 방식 (SoundMode) */
+    var soundMode: String = SoundMode.FORCE,
     var sentAt: Long = 0L,
     var deliveredAt: Long = 0L,
     var readAt: Long = 0L

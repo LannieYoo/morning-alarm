@@ -191,7 +191,8 @@ class SyncService : Service() {
                         type = if (instant) RingPlayerService.TYPE_INSTANT else RingPlayerService.TYPE_TEST,
                         messageId = msg.id,
                         ownerPhone = msg.fromPhone,
-                        ownerName = fromName
+                        ownerName = fromName,
+                        soundMode = msg.soundMode
                     )
                     else -> showChatNotification(msg, fromName, if (instant) "⚡ 놓친 즉시 알람 · " else "🔊 놓친 테스트 알람 · ")
                 }
