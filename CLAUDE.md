@@ -20,6 +20,9 @@
 - **알람 수정 감지**: SyncService가 `Prefs.alarmVersion`(updatedAt)과 비교해 바뀐 알람은 cancelAll + clearStopped → 당일 이미 울렸어도 새 시각에 다시 울림 (버그 수정 2026-09-04)
 - **TTS 통일(`alarm/Tts.kt`)**: Google TTS 설치돼 있으면 그 엔진, 속도 0.95·pitch 1.0 고정, 오프라인 한국어 최고 품질 voice 선택 (기기마다 목소리가 달랐던 문제)
 - **문장 선택형**: `util/Korean.kt` `alarmPresets(name)` (아/야 자동) + 기타 직접 입력. 즉시 알람(Kind.INSTANT_ALARM)도 같은 선택기
+- **기록 탭**: events를 alarmId+날짜(표시 시간대)로 묶어 요약(N회 울림→k회차 종료, 반응 초, 정답 틀린 횟수 `wrongAnswers`), 취소는 빨간 카드. 테스트/즉시는 건별
+- **메시지 탭**: 연락처 목록(마지막 메시지·안 읽음) → 대화방. `Repo.listenAllMessages`(from/to 두 쿼리 합침). 긴급은 체크박스+확인 다이얼로그 → `UrgentActivity` 깜빡임, 소리는 폰 ringerMode 따름(소리→낭독+진동, 진동→진동, 무음→화면만)
+- **프로필 아이콘**: `Avatars.ALL` 이모지 30개, `Prefs.myAvatar` + `users/{me}.avatar`(`Repo.updateProfile`), 상대 아이콘은 peerData(users 문서)에서
 - **받은 알람은 조회 전용**: 알람 삭제·수정은 보낸 사람만. 알람/기록/울림 화면에 보낸 사람 이름(`ownerName`) 표시
 - **표시 시간대**: 기본 Asia/Seoul, 상태 탭에서 기기 시간대로 전환(`TzState`)
 
