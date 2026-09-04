@@ -9,6 +9,7 @@
 - **알람 실행**: 알람은 받는 기기에 동기화(Prefs 캐시) 후 로컬 `AlarmManager.setAlarmClock`으로 울림 → 오프라인에도 동작. 시각은 항상 **받는 기기 현지 시간** 기준. `scheduleAll`은 첫 회차만 갱신하고 진행 중 반복 회차는 건드리지 않음
 - **알람 거절 시간(QuietRule)**: 각자 무제한 등록(요일+시작~종료, 자정 넘김 가능, 사유 sleep/class/meeting/workout/other). 로컬 Prefs에 저장 + `users/{me}.quietRules`에 업로드. 받는 쪽 `AlarmReceiver`/`SyncService`(테스트 알람)가 `Quiet.find`로 판정해 울리지 않고 events에 `rejected=true, rejectReason` 기록. 보내는 쪽은 알람 편집 화면에서 `Quiet.conflicts`로 즉시 경고, 모든 요일이 겹치면 저장 차단. **긴급 메시지는 예외로 항상 전달**
 - **무음 뚫기**: `STREAM_ALARM` + TTS(`USAGE_ALARM`), 울릴 때 알람 볼륨 강제 최대(종료 시 복원). 무음·진동·통화 중에도 스피커로 남
+- **울림 방식(`SoundMode`)**: 알람/즉시 알람마다 보내는 쪽이 선택. `force`(무조건 소리, **기본·강조**) / `follow`(폰 설정 따름: 소리 모드→현재 볼륨 낭독+진동, 진동 모드→진동만, 무음→화면만). `RingPlayerService`가 ringerMode로 판정
 - **반복 울림**: `repeatCount`회, `intervalMin`분 간격. `AlarmReceiver`가 다음 회차를 미리 예약하고, 질문 정답 시 `cancelRepeats` + 당일 정지 플래그(`stopped_{alarmId}` = 날짜)
 - **그만 울리기**: 질문(최대 10개) 정답을 맞혀야 당일 종료. 오답이면 다음 질문 순환. 정답 비교는 trim+소문자+공백제거
 - **긴급 팝업**: `Message.kind = urgent` → `UrgentActivity` 빨강 풀스크린 + 진동 + 1회 낭독
