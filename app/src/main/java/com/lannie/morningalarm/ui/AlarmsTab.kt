@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,6 +55,7 @@ import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.data.SoundMode
 import com.lannie.morningalarm.util.Quiet
 import com.lannie.morningalarm.util.alarmPresets
+import com.lannie.morningalarm.util.anyAnswerMatches
 import com.lannie.morningalarm.util.vocative
 import java.time.ZonedDateTime
 
@@ -162,7 +165,8 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
                                 editing = alarm
                                 showEditor = true
                             },
-                            onDelete = { runCatching { Repo.deleteAlarm(alarm.id) } }
+                            onDelete = { runCatching { Repo.deleteAlarm(alarm.id) } },
+                            onResend = { runCatching { Repo.resendAlarm(alarm) } }
                         )
                     }
                 }
@@ -173,7 +177,8 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
                             alarm,
                             ownerName = alarm.ownerName.ifBlank {
                                 contactLabel(contacts, alarm.ownerPhone)
-                            }
+                            },
+                            prefs = prefs
                         )
                     }
                 }
@@ -190,17 +195,19 @@ private fun SentAlarmCard(
     conflicts: Map<Int, QuietRule>,
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onResend: () -> Unit
 ) {
-    val accent = if (alarm.enabled) Palette.Orange else Palette.Muted
-    AppCard {
+    val off = alarm.cancelledByTarget
+    val accent = if (alarm.isLive()) Palette.Orange else Palette.Muted
+    AppCard(Modifier.alpha(if (off) 0.55f else 1f)) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Pill("→ $targetName", Palette.OrangeDim, Palette.Orange)
                 Spacer(Modifier.width(6.dp))
-                SoundModePill(alarm.soundMode)
+                if (off) Pill("🚫 수신인 끔", Palette.Surface2, Palette.Muted) else SoundModePill(alarm.soundMode)
                 Spacer(Modifier.weight(1f))
-                Switch(checked = alarm.enabled, onCheckedChange = onToggle)
+                if (!off) Switch(checked = alarm.enabled, onCheckedChange = onToggle)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -226,11 +233,25 @@ private fun SentAlarmCard(
                 }
             }
             Text("“${alarm.text}”", fontSize = 14.sp, color = Palette.Text, modifier = Modifier.padding(top = 4.dp))
-            if (conflicts.isNotEmpty()) {
+            if (off) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "🚫 $targetName 님이 ${if (alarm.cancelledAt > 0L) {
+                        fmtDateTime(
+                            alarm.cancelledAt
+                        ) + "에 "
+                    } else {
+                        ""
+                    }}이 알람을 껐어요 · 다시 보내기 전까지 울리지 않아요",
+                    fontSize = 12.sp,
+                    color = Palette.Muted
+                )
+            } else if (conflicts.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
                 Text(conflictText(targetName, alarm.days, conflicts), fontSize = 12.sp, color = Palette.Danger)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (off) TextButton(onClick = onResend) { Text("🔁 다시 보내기", color = Palette.Orange) }
                 TextButton(onClick = onEdit) { Text("수정", color = Palette.Orange) }
                 TextButton(onClick = onDelete) { Text("삭제", color = Palette.Danger) }
             }
@@ -239,16 +260,32 @@ private fun SentAlarmCard(
 }
 
 @Composable
-private fun ReceivedAlarmCard(alarm: Alarm, ownerName: String) {
-    val accent = if (alarm.enabled) Palette.Teal else Palette.Muted
-    AppCard {
+private fun ReceivedAlarmCard(alarm: Alarm, ownerName: String, prefs: Prefs) {
+    val off = alarm.cancelledByTarget
+    val accent = if (alarm.isLive()) Palette.Teal else Palette.Muted
+    var askOff by remember(alarm.id) { mutableStateOf(false) }
+    val questions = alarm.questions.filter { it.q.isNotBlank() }
+
+    if (askOff) {
+        TurnOffDialog(
+            questions = questions,
+            ownerName = ownerName,
+            onConfirm = { wrong ->
+                runCatching { Repo.cancelAlarmByTarget(alarm, prefs.myPhone, prefs.myName, wrong) }
+                askOff = false
+            },
+            onDismiss = { askOff = false }
+        )
+    }
+
+    AppCard(Modifier.alpha(if (off) 0.55f else 1f)) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Pill("← $ownerName", Palette.TealDim, Palette.Teal)
                 Spacer(Modifier.width(6.dp))
-                SoundModePill(alarm.soundMode)
+                if (off) Pill("🚫 내가 껐어요", Palette.Surface2, Palette.Muted) else SoundModePill(alarm.soundMode)
                 Spacer(Modifier.weight(1f))
-                if (!alarm.enabled) Text("꺼짐", fontSize = 12.sp, color = Palette.Muted)
+                if (!alarm.enabled) Text("보낸 사람이 꺼둠", fontSize = 12.sp, color = Palette.Muted)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -274,8 +311,81 @@ private fun ReceivedAlarmCard(alarm: Alarm, ownerName: String) {
                 }
             }
             Text("“${alarm.text}”", fontSize = 14.sp, color = Palette.Text, modifier = Modifier.padding(top = 4.dp))
+            if (off) {
+                Spacer(Modifier.height(4.dp))
+                Text("내가 껐어요 · $ownerName 님이 다시 보내면 다시 울려요", fontSize = 12.sp, color = Palette.Muted)
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { askOff = true }) {
+                        Text(if (questions.isEmpty()) "끄기" else "끄기 (정답 필요)", color = Palette.Danger)
+                    }
+                }
+            }
         }
     }
+}
+
+/** 받은 알람 끄기: 질문이 있으면 정답을 맞혀야, 없으면 확인만 */
+@Composable
+private fun TurnOffDialog(
+    questions: List<Question>,
+    ownerName: String,
+    onConfirm: (wrongAnswers: Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var qIndex by remember {
+        mutableStateOf(if (questions.isEmpty()) 0 else (System.currentTimeMillis() % questions.size).toInt())
+    }
+    var answer by remember { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    var wrongCount by remember { mutableStateOf(0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Surface,
+        title = { Text("이 알람을 끌까요?", color = Palette.Text, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "$ownerName 님에게 '껐다'고 알려지고, 다시 보내기 전까지 울리지 않아요.",
+                    color = Palette.Muted,
+                    fontSize = 13.sp
+                )
+                if (questions.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("Q. " + questions[qIndex].q, color = Palette.Text, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = answer,
+                        onValueChange = {
+                            answer = it
+                            wrong = false
+                        },
+                        placeholder = { Text("정답") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (wrong) Text("틀렸어요, 다시!", color = Palette.Danger, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (questions.isEmpty() || anyAnswerMatches(answer, questions[qIndex].answers())) {
+                        onConfirm(wrongCount)
+                    } else {
+                        wrong = true
+                        wrongCount++
+                        qIndex = (qIndex + 1) % questions.size
+                        answer = ""
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Palette.Danger, contentColor = Palette.Text)
+            ) { Text(if (questions.isEmpty()) "끄기" else "정답 확인 → 끄기") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("취소", color = Palette.Muted) } }
+    )
 }
 
 /** 거절 시간 충돌 안내문. 예) "⛔ 월~금 거절 — 유진의 📚 수업시간 · 월~금 09:00~15:00" */

@@ -233,6 +233,38 @@ object Repo {
         db.collection("alarms").document(alarmId).delete()
     }
 
+    /**
+     * 받는 사람이 받은 알람을 취소 (수신인 취소). 알람 문서에 표시하고 보낸 사람 기록·알림용 event를 남긴다.
+     * updatedAt은 건드리지 않아 보낸 사람 화면에서 "수정"으로 오해되지 않게 한다.
+     */
+    fun cancelAlarmByTarget(alarm: Alarm, myPhone: String, myName: String, wrongAnswers: Int) {
+        val now = System.currentTimeMillis()
+        db.collection("alarms").document(alarm.id)
+            .set(mapOf("cancelledByTarget" to true, "cancelledAt" to now), SetOptions.merge())
+        createEvent(
+            AlarmEvent(
+                alarmId = alarm.id,
+                alarmText = alarm.text,
+                ownerPhone = alarm.ownerPhone,
+                ownerName = alarm.ownerName,
+                targetPhone = myPhone,
+                targetName = myName,
+                type = "alarm",
+                firedAt = now,
+                dismissedAt = now,
+                answered = alarm.questions.any { it.q.isNotBlank() },
+                stoppedForDay = true,
+                cancelledAlarm = true,
+                wrongAnswers = wrongAnswers
+            )
+        )
+    }
+
+    /** 보낸 사람이 수신인 취소된 알람을 다시 보냄 (취소 해제 + 수정으로 간주해 받는 쪽이 다시 예약) */
+    fun resendAlarm(alarm: Alarm) {
+        saveAlarm(alarm.copy(cancelledByTarget = false, cancelledAt = 0L))
+    }
+
     /** 나에게 오는 알람 (받는 기기가 구독) */
     fun listenAlarmsFor(targetPhone: String, onChange: (List<Alarm>) -> Unit): ListenerRegistration =
         db.collection("alarms")
@@ -269,6 +301,11 @@ object Repo {
         }
         event.id = doc.id
         doc.set(event)
+    }
+
+    /** 기록 삭제 (하루치 묶음의 event 여러 건) */
+    fun deleteEvents(ids: List<String>) {
+        ids.forEach { db.collection("events").document(it).delete() }
     }
 
     fun updateEvent(eventId: String, fields: Map<String, Any>) {

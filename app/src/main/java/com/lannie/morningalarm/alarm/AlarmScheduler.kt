@@ -32,7 +32,7 @@ object AlarmScheduler {
     fun scheduleAll(context: Context) {
         val alarms = Prefs(context).getAlarms()
         for (alarm in alarms) {
-            if (alarm.enabled) {
+            if (alarm.isLive()) {
                 scheduleFirstRing(context, alarm, nextTrigger(alarm, ZonedDateTime.now()))
             } else {
                 cancelAll(context, alarm.id, maxRepeat = MAX_REPEAT)
@@ -42,7 +42,7 @@ object AlarmScheduler {
 
     /** 방금 울린(또는 취소된) 회차 이후의 첫 울림 예약. afterMillis 기준 1분 뒤부터 찾는다. */
     fun scheduleNextOccurrence(context: Context, alarm: Alarm, afterMillis: Long = System.currentTimeMillis()) {
-        if (!alarm.enabled) return
+        if (!alarm.isLive()) return
         val from = ZonedDateTime.ofInstant(Instant.ofEpochMilli(afterMillis), ZoneId.systemDefault()).plusMinutes(1)
         scheduleFirstRing(context, alarm, nextTrigger(alarm, from))
     }

@@ -140,6 +140,7 @@ class SyncService : Service() {
         val who = e.targetName.ifBlank { Prefs(this).contactName(e.targetPhone) }
         val at = java.text.SimpleDateFormat("HH:mm", java.util.Locale.KOREA).format(java.util.Date(e.firedAt))
         val (state, text) = when {
+            e.cancelledAlarm -> "cancelledAlarm" to "🚫 $who 님이 받은 알람을 껐어요 · 다시 보내기 전까지 울리지 않아요"
             e.cancelled -> "cancelled" to "❌ $who 님이 $at 알람을 취소했어요"
             e.rejected -> "rejected" to "🚫 $who 님의 거절 시간이라 울리지 않았어요 (${e.rejectReason})"
             e.stoppedForDay && e.answered -> "answered" to "✅ $who 님이 정답을 맞히고 알람을 껐어요"

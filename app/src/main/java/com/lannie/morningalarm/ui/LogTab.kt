@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -100,14 +101,25 @@ private fun groupByDay(events: List<AlarmEvent>): List<DayLog> {
 
 @Composable
 private fun DayLogCard(g: DayLog, prefs: Prefs) {
+    val cancelledAlarm = g.rings.firstOrNull { it.cancelledAlarm }
     val cancelled = g.rings.firstOrNull { it.cancelled }
     val rejected = g.rings.all { it.rejected }
-    val rang = g.rings.filter { !it.rejected && !it.cancelled }
+    val rang = g.rings.filter { !it.rejected && !it.cancelled && !it.cancelledAlarm }
     val stopped = rang.firstOrNull { it.stoppedForDay }
     val snoozes = rang.count { it.dismissedAt > 0L && !it.stoppedForDay }
 
     // 요약 문장과 색
     val (summary, color, highlight) = when {
+        cancelledAlarm != null -> Triple(
+            "🚫 수신인 끔 · ${fmtTimeShort(cancelledAlarm.dismissedAt)}에 받은 알람을 껐어요" +
+                if (cancelledAlarm.answered) {
+                    if (cancelledAlarm.wrongAnswers == 0) " · 정답 한 번에" else " · 정답 (${cancelledAlarm.wrongAnswers}번 틀림)"
+                } else {
+                    ""
+                },
+            Palette.Muted,
+            false
+        )
         cancelled != null -> Triple(
             "❌ 취소됨 · 알람 5분 전(${fmtTimeShort(cancelled.dismissedAt)})에 취소" +
                 if (cancelled.answered) {
@@ -161,7 +173,11 @@ private fun DayLogCard(g: DayLog, prefs: Prefs) {
                 when (g.type) {
                     "test" -> Pill("테스트", Palette.TealDim, Palette.Teal)
                     "instant" -> Pill("⚡ 즉시", Palette.TealDim, Palette.Teal)
-                    else -> if (cancelled != null) Pill("취소", Palette.Danger, Palette.Text)
+                    else -> if (cancelledAlarm != null) {
+                        Pill("🚫 수신인 끔", Palette.Surface2, Palette.Muted)
+                    } else if (cancelled != null) {
+                        Pill("취소", Palette.Danger, Palette.Text)
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 Text(fmtDateTime(g.firstAt), fontSize = 12.sp, color = Palette.Muted)
@@ -176,6 +192,11 @@ private fun DayLogCard(g: DayLog, prefs: Prefs) {
                 Spacer(Modifier.height(8.dp))
                 rang.forEachIndexed { i, e ->
                     RingRow(i + 1, e)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { runCatching { Repo.deleteEvents(g.rings.map { it.id }) } }) {
+                    Text("삭제", color = Palette.Muted, fontSize = 12.sp)
                 }
             }
         }

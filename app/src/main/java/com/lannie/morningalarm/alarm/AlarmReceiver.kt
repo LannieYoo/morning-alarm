@@ -37,7 +37,7 @@ class AlarmReceiver : BroadcastReceiver() {
             AlarmScheduler.scheduleNextOccurrence(context, alarm)
         }
 
-        if (!alarm.enabled) return
+        if (!alarm.isLive()) return
         if (prefs.isStoppedToday(alarmId)) return
         // 연결을 끊은 상대의 알람은 울리지 않는다
         if (prefs.isDisconnected(alarm.ownerPhone)) return
@@ -90,8 +90,9 @@ class AlarmReceiver : BroadcastReceiver() {
         alarm: com.lannie.morningalarm.data.Alarm,
         triggerAt: Long
     ) {
-        if (!alarm.enabled || triggerAt <= 0L) return
+        if (!alarm.isLive() || triggerAt <= 0L) return
         if (prefs.isStoppedToday(alarm.id)) return
+        if (prefs.isDisconnected(alarm.ownerPhone)) return
         val at = ZonedDateTime.ofInstant(Instant.ofEpochMilli(triggerAt), ZoneId.systemDefault())
         if (Quiet.find(prefs.getQuietRules(), at) != null) return
 

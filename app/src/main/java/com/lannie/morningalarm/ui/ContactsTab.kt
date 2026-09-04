@@ -81,12 +81,11 @@ fun ContactsTab(
         AlertDialog(
             onDismissRequest = { disconnectTarget = null },
             containerColor = Palette.Surface,
-            title = {
-                Text("${c.name.ifBlank { c.phone }} 님과 연결을 끊을까요?", color = Palette.Text, fontWeight = FontWeight.Bold)
-            },
+            title = { Text("정말 연결을 끊을까요?", color = Palette.Text, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "서로 알람과 메시지를 보낼 수 없게 돼요. 상대 화면에는 '연결 해제됨'으로 표시돼요.\n다시 연결하려면 새로 요청하면 돼요.",
+                    "끊으면 ${c.name.ifBlank { c.phone }} 님과 알람과 메시지를 주고받을 수 없어요.\n" +
+                        "내 목록에서 삭제되고, 상대 화면에는 '연결 해제됨'으로 표시돼요.",
                     color = Palette.Muted
                 )
             },
@@ -94,10 +93,13 @@ fun ContactsTab(
                 Button(
                     onClick = {
                         runCatching { Repo.disconnect(prefs.myPhone, c.phone) }
+                        // 내 쪽에서는 목록에서 바로 삭제 (상대 쪽에만 회색으로 남음)
+                        prefs.hidePhone(c.phone)
+                        hidden = prefs.hiddenPhones()
                         disconnectTarget = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Palette.Danger, contentColor = Palette.Text)
-                ) { Text("연결 끊기") }
+                ) { Text("확인") }
             },
             dismissButton = { TextButton(onClick = { disconnectTarget = null }) { Text("취소", color = Palette.Muted) } }
         )

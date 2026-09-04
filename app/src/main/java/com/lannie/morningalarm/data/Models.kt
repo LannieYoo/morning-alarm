@@ -42,8 +42,14 @@ data class Alarm(
     var questions: List<Question> = emptyList(),
     /** force(무조건 소리, 기본) | follow(폰 설정 따름) */
     var soundMode: String = SoundMode.FORCE,
+    /** 받는 사람이 이 알람을 취소함 (더 이상 울리지 않음). 보낸 사람이 "다시 보내기"하면 해제 */
+    var cancelledByTarget: Boolean = false,
+    var cancelledAt: Long = 0L,
     var updatedAt: Long = 0L
-)
+) {
+    /** 실제로 울릴 알람인지 */
+    fun isLive(): Boolean = enabled && !cancelledByTarget
+}
 
 /** 울림 방식 */
 object SoundMode {
@@ -82,7 +88,9 @@ data class AlarmEvent(
     /** 받는 사람이 5분 전 예고에서 취소함 (firedAt = 원래 알람 시각) */
     var cancelled: Boolean = false,
     /** 정답을 맞히기 전까지 틀린 횟수 */
-    var wrongAnswers: Int = 0
+    var wrongAnswers: Int = 0,
+    /** 받는 사람이 알람 자체를 취소함 (수신인 취소, 이후 울리지 않음) */
+    var cancelledAlarm: Boolean = false
 )
 
 /** 프로필 아이콘 후보 (실물 사진 대신 심플한 이모지) */
