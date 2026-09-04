@@ -5,7 +5,8 @@
 ## 핵심 설계 결정 (변경 시 주의)
 
 - **통신**: Firebase Firestore + 익명 인증. FCM/Cloud Functions 없이 모든 기기의 포그라운드 서비스(`SyncService`)가 실시간 리스너로 수신. 이유: 무료, 서버리스, 캐나다↔한국 국제 SMS 비용 회피
-- **연락처**: `pairRequests`(status=accepted)를 from/to 두 방향으로 구독해 합친 것이 연락처(`Repo.listenContacts`). 수락한 쪽이 `toName`을 채운다. Prefs.contacts에 캐시
+- **연락처**: `pairRequests`를 from/to 두 방향(모든 status)으로 구독해 번호별로 합친 것이 연락처(`Repo.listenContacts`). accepted 있으면 active, disconnected만 있으면 회색 '연결 해제됨'(`Contact.active=false, disconnectedBy`). 수락한 쪽이 `toName`을 채운다. Prefs.contacts에 캐시. **연결 끊기** = `Repo.disconnect`가 양방향 accepted 문서를 disconnected로; 끊긴 상대의 알람·메시지는 `Prefs.isDisconnected`로 무시(AlarmReceiver/SyncService). 목록에서 지우기는 로컬 `hiddenPhones`
+- **알림 채널 주의**: 완전 무음 채널(sound null·진동 off)은 안드로이드가 '조용한 알림'으로 취급해 fullScreenIntent를 띄우지 않는다. 알람 채널 `alarm_v2`는 `res/raw/silence.wav` + 짧은 진동으로 HIGH 등급 유지. 채널 설정은 생성 후 못 바꾸므로 바꿀 땐 새 id + 옛 채널 삭제
 - **알람 실행**: 알람은 받는 기기에 동기화(Prefs 캐시) 후 로컬 `AlarmManager.setAlarmClock`으로 울림 → 오프라인에도 동작. 시각은 항상 **받는 기기 현지 시간** 기준. `scheduleAll`은 첫 회차만 갱신하고 진행 중 반복 회차는 건드리지 않음
 - **알람 거절 시간(QuietRule)**: 각자 무제한 등록(요일+시작~종료, 자정 넘김 가능, 사유 sleep/class/meeting/workout/other). 로컬 Prefs에 저장 + `users/{me}.quietRules`에 업로드. 받는 쪽 `AlarmReceiver`/`SyncService`(테스트 알람)가 `Quiet.find`로 판정해 울리지 않고 events에 `rejected=true, rejectReason` 기록. 보내는 쪽은 알람 편집 화면에서 `Quiet.conflicts`로 즉시 경고, 모든 요일이 겹치면 저장 차단. **긴급 메시지는 예외로 항상 전달**
 - **무음 뚫기**: `STREAM_ALARM` + TTS(`USAGE_ALARM`), 울릴 때 알람 볼륨 강제 최대(종료 시 복원). 무음·진동·통화 중에도 스피커로 남
