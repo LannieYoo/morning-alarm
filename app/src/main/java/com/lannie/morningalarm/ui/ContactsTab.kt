@@ -2,8 +2,14 @@
 
 package com.lannie.morningalarm.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -202,10 +208,21 @@ fun ContactsTab(
                             TextButton(onClick = {
                                 reqs.forEach { r -> runCatching { Repo.rejectPairRequest(r.id) } }
                             }) { Text("거절", color = Palette.Muted) }
-                            Button(onClick = {
-                                // 같은 번호에서 여러 번 왔어도 전부 수락 처리해 대기 목록에 남지 않게
-                                reqs.forEach { r -> runCatching { Repo.acceptPairRequest(r.id, prefs.myName) } }
-                            }) { Text("수락", fontWeight = FontWeight.Bold) }
+                            // 수락 버튼은 눈에 띄게 깜빡인다
+                            val blink = rememberInfiniteTransition(label = "accept")
+                            val glow by blink.animateFloat(
+                                initialValue = 0.4f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(tween(550), RepeatMode.Reverse),
+                                label = "glow"
+                            )
+                            Button(
+                                onClick = {
+                                    // 같은 번호에서 여러 번 왔어도 전부 수락 처리해 대기 목록에 남지 않게
+                                    reqs.forEach { r -> runCatching { Repo.acceptPairRequest(r.id, prefs.myName) } }
+                                },
+                                modifier = Modifier.alpha(glow)
+                            ) { Text("수락", fontWeight = FontWeight.Bold) }
                         }
                     }
                 }
@@ -489,14 +506,21 @@ private fun HealthCard(health: HealthStatus, onRefreshHealth: () -> Unit) {
 
 @Composable
 private fun FixRow(label: String, ok: Boolean, onFix: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+    // 줄 간격을 좁게: 버튼 최소 높이(40dp)를 28dp로 줄이고 세로 여백 제거
+    Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             (if (ok) "✅ " else "⚠️ ") + label,
             fontSize = 14.sp,
             color = if (ok) Palette.Text else Palette.Danger,
             modifier = Modifier.weight(1f)
         )
-        if (!ok) TextButton(onClick = onFix) { Text("해결", color = Palette.Orange) }
+        if (!ok) {
+            TextButton(
+                onClick = onFix,
+                modifier = Modifier.height(28.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+            ) { Text("해결", color = Palette.Orange) }
+        }
     }
 }
 
