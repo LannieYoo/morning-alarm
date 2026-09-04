@@ -39,6 +39,8 @@ class AlarmReceiver : BroadcastReceiver() {
 
         if (!alarm.enabled) return
         if (prefs.isStoppedToday(alarmId)) return
+        // 연결을 끊은 상대의 알람은 울리지 않는다
+        if (prefs.isDisconnected(alarm.ownerPhone)) return
 
         // 내 알람 거절 시간이면 울리지 않고 보낸 사람 기록에 "거절됨"으로 남긴다
         val quiet = Quiet.find(prefs.getQuietRules(), ZonedDateTime.now())

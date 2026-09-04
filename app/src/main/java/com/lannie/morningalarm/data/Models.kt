@@ -6,8 +6,17 @@ data class Question(var q: String = "", var a: String = "", var a2: String = "",
     fun answers(): List<String> = listOf(a, a2, a3).map { it.trim() }.filter { it.isNotEmpty() }
 }
 
-/** 연결된 상대 (연락처). 전화번호가 ID. */
-data class Contact(var phone: String = "", var name: String = "")
+/**
+ * 연결된 상대 (연락처). 전화번호가 ID.
+ * active=false면 한쪽이 연결을 끊은 상태 — 회색으로 남고 알람·메시지는 오가지 않는다.
+ */
+data class Contact(
+    var phone: String = "",
+    var name: String = "",
+    var active: Boolean = true,
+    /** 끊은 사람 번호 (active=false일 때) */
+    var disconnectedBy: String = ""
+)
 
 /**
  * 알람. 보낸 사람(owner)이 만들고 받는 사람(target) 기기에 동기화되어 로컬 AlarmManager로 예약된다.
@@ -141,8 +150,10 @@ data class PairRequest(
     var toPhone: String = "",
     /** 수락한 쪽이 자기 이름을 채운다 */
     var toName: String = "",
-    /** pending | accepted | rejected */
+    /** pending | accepted | rejected | disconnected */
     var status: String = "pending",
+    /** 연결을 끊은 사람 번호 (status=disconnected) */
+    var disconnectedBy: String = "",
     var createdAt: Long = 0L
 )
 

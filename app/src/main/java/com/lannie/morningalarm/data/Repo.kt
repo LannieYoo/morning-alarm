@@ -129,24 +129,48 @@ object Repo {
             }
 
     /**
-     * 수락된 연결 전부 → 연락처 목록. 내가 보낸 것과 받은 것을 각각 구독해 합친다.
-     * 같은 번호가 여러 번 수락됐으면 하나로 합친다.
+     * 연락처 목록. 내가 보낸 것과 받은 것(모든 상태)을 구독해 번호별로 합친다.
+     * - accepted가 하나라도 있으면 활성 연락처
+     * - accepted가 없고 disconnected만 있으면 "연결 해제됨"(회색) 연락처
+     * - pending/rejected만 있으면 연락처 아님
      */
     fun listenContacts(me: String, onChange: (List<Contact>) -> Unit): ListenerRegistration {
         var sent: List<PairRequest> = emptyList()
         var received: List<PairRequest> = emptyList()
         fun emit() {
-            val map = linkedMapOf<String, Contact>()
-            for (r in sent) map[r.toPhone] = Contact(r.toPhone, r.toName.ifBlank { map[r.toPhone]?.name ?: r.toPhone })
-            for (r in received) {
-                map[r.fromPhone] =
-                    Contact(r.fromPhone, r.fromName.ifBlank { map[r.fromPhone]?.name ?: r.fromPhone })
+            data class Acc(
+                var name: String,
+                var accepted: Boolean = false,
+                var disconnected: Boolean = false,
+                var by: String = ""
+            )
+            val map = linkedMapOf<String, Acc>()
+            fun touch(phone: String, name: String, r: PairRequest) {
+                val acc = map.getOrPut(phone) { Acc(name.ifBlank { phone }) }
+                if (name.isNotBlank()) acc.name = name
+                when (r.status) {
+                    "accepted" -> acc.accepted = true
+                    "disconnected" -> {
+                        acc.disconnected = true
+                        acc.by = r.disconnectedBy
+                    }
+                }
             }
-            onChange(map.values.toList())
+            for (r in sent) touch(r.toPhone, r.toName, r)
+            for (r in received) touch(r.fromPhone, r.fromName, r)
+            onChange(
+                map.filter { it.value.accepted || it.value.disconnected }.map { (phone, acc) ->
+                    Contact(
+                        phone = phone,
+                        name = acc.name,
+                        active = acc.accepted,
+                        disconnectedBy = if (acc.accepted) "" else acc.by
+                    )
+                }
+            )
         }
         val a = db.collection("pairRequests")
             .whereEqualTo("fromPhone", me)
-            .whereEqualTo("status", "accepted")
             .addSnapshotListener { s, _ ->
                 if (s != null) {
                     sent = s.documents.mapNotNull { d -> d.toObject(PairRequest::class.java) }
@@ -155,7 +179,6 @@ object Repo {
             }
         val b = db.collection("pairRequests")
             .whereEqualTo("toPhone", me)
-            .whereEqualTo("status", "accepted")
             .addSnapshotListener { s, _ ->
                 if (s != null) {
                     received = s.documents.mapNotNull { d -> d.toObject(PairRequest::class.java) }
@@ -166,6 +189,21 @@ object Repo {
             a.remove()
             b.remove()
         }
+    }
+
+    /** 연결 끊기: 두 사람 사이의 accepted 문서를 모두 disconnected로 (양쪽 화면에 반영) */
+    fun disconnect(me: String, peer: String) {
+        val patch = mapOf("status" to "disconnected", "disconnectedBy" to me)
+        db.collection("pairRequests").whereEqualTo("fromPhone", me).whereEqualTo("toPhone", peer).get()
+            .addOnSuccessListener { s ->
+                s.documents.filter { it.getString("status") == "accepted" }
+                    .forEach { it.reference.set(patch, SetOptions.merge()) }
+            }
+        db.collection("pairRequests").whereEqualTo("fromPhone", peer).whereEqualTo("toPhone", me).get()
+            .addOnSuccessListener { s ->
+                s.documents.filter { it.getString("status") == "accepted" }
+                    .forEach { it.reference.set(patch, SetOptions.merge()) }
+            }
     }
 
     fun acceptPairRequest(requestId: String, myName: String) {

@@ -299,7 +299,7 @@ private fun InstantAlarmScreen(
     onSent: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    var target by remember { mutableStateOf(contacts.firstOrNull()?.phone ?: "") }
+    var target by remember { mutableStateOf(contacts.firstOrNull { it.active }?.phone ?: "") }
     var soundMode by remember { mutableStateOf(SoundMode.FORCE) }
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
@@ -318,7 +318,7 @@ private fun InstantAlarmScreen(
 
             SectionHeader("누구에게")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                contacts.forEach { c ->
+                contacts.filter { it.active }.forEach { c ->
                     FilterChip(
                         selected = c.phone == target,
                         onClick = { target = c.phone },
@@ -389,7 +389,14 @@ private fun AlarmEditor(
     onCancel: () -> Unit
 ) {
     var showRecent by remember { mutableStateOf(false) }
-    var target by remember { mutableStateOf(initial.targetPhone.ifBlank { contacts.firstOrNull()?.phone ?: "" }) }
+    var target by remember {
+        mutableStateOf(
+            initial.targetPhone.ifBlank {
+                contacts.firstOrNull { it.active }?.phone
+                    ?: ""
+            }
+        )
+    }
     var soundMode by remember { mutableStateOf(initial.soundMode.ifBlank { SoundMode.FORCE }) }
     var hourText by remember { mutableStateOf(two(initial.hour)) }
     var minuteText by remember { mutableStateOf(two(initial.minute)) }
@@ -441,7 +448,7 @@ private fun AlarmEditor(
 
             SectionHeader("누구에게")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                contacts.forEach { c ->
+                contacts.filter { it.active }.forEach { c ->
                     FilterChip(
                         selected = c.phone == target,
                         onClick = { if (initial.id.isBlank()) target = c.phone },

@@ -49,6 +49,20 @@ class Prefs(context: Context) {
     fun contactName(phone: String): String =
         getContacts().firstOrNull { it.phone == phone }?.name?.ifBlank { null } ?: phone
 
+    /** 연결이 끊긴 상대인지 (끊긴 상대의 알람·메시지는 무시) */
+    fun isDisconnected(phone: String): Boolean = getContacts().firstOrNull { it.phone == phone }?.active == false
+
+    /** 끊긴 상대를 목록에서 지운 번호들 (로컬) */
+    fun hiddenPhones(): Set<String> = sp.getStringSet("hiddenPhones", emptySet()) ?: emptySet()
+
+    fun hidePhone(phone: String) {
+        sp.edit().putStringSet("hiddenPhones", hiddenPhones() + phone).apply()
+    }
+
+    fun unhidePhone(phone: String) {
+        sp.edit().putStringSet("hiddenPhones", hiddenPhones() - phone).apply()
+    }
+
     // ---- 나에게 온 알람 캐시 ----
 
     fun saveAlarms(alarms: List<Alarm>) {

@@ -83,9 +83,10 @@ class SyncService : Service() {
             prefs.saveContacts(contacts)
         }
 
-        // 나에게 오는 알람 동기화 → 로컬 캐시 + 재예약
-        listeners += Repo.listenAlarmsFor(me) { alarms ->
-            // 보낸 사람이 삭제한 알람은 로컬 예약(반복 회차 포함)도 모두 취소
+        // 나에게 오는 알람 동기화 → 로컬 캐시 + 재예약 (연결 끊은 상대의 알람은 제외)
+        listeners += Repo.listenAlarmsFor(me) { all ->
+            val alarms = all.filter { !prefs.isDisconnected(it.ownerPhone) }
+            // 보낸 사람이 삭제한 알람(또는 끊긴 상대의 알람)은 로컬 예약(반복 회차 포함)도 모두 취소
             val newIds = alarms.map { it.id }.toSet()
             prefs.getAlarms().filter { it.id !in newIds }.forEach {
                 AlarmScheduler.cancelAll(this, it.id, maxRepeat = AlarmScheduler.MAX_REPEAT)
@@ -152,6 +153,8 @@ class SyncService : Service() {
     }
 
     private fun handleIncoming(msg: Message, prefs: Prefs) {
+        // 연결을 끊은 상대의 메시지·알람은 무시
+        if (prefs.isDisconnected(msg.fromPhone)) return
         // 오래 밀려 있던 메시지(10분 초과)는 팝업 대신 일반 알림으로만
         val fresh = System.currentTimeMillis() - msg.sentAt < 10 * 60_000L
         val fromName = msg.fromName.ifBlank { prefs.contactName(msg.fromPhone) }

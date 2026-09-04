@@ -91,17 +91,21 @@ fun Home(prefs: Prefs) {
 
     val incomingPhones = incoming.map { it.fromPhone }.distinct()
     val unreadByPhone = unread.groupBy { it.fromPhone }.mapValues { it.value.size }
+    val active = contacts.filter { it.active }
 
     Column(Modifier.fillMaxSize()) {
         Spacer(Modifier.height(4.dp))
-        if (!health.allOk) WarnBanner("⚠️ 설정 필요: " + health.missing.joinToString(" · ")) { tab = 3 }
-        if (incomingPhones.isNotEmpty()) WarnBanner("📨 연결 요청 ${incomingPhones.size}건") { tab = 3 }
+        // 연결 탭에서는 페이지 안에서 직접 해결하므로 배너를 띄우지 않는다
+        if (tab != 3) {
+            if (!health.allOk) WarnBanner("⚠️ 내 폰 설정 필요: " + health.missing.joinToString(" · ")) { tab = 3 }
+            if (incomingPhones.isNotEmpty()) WarnBanner("📨 연결 요청 ${incomingPhones.size}건") { tab = 3 }
+        }
 
         Column(Modifier.weight(1f)) {
             when (tab) {
                 0 -> AlarmsTab(prefs, contacts, peerData)
                 1 -> LogTab(prefs)
-                2 -> ChatTab(prefs, contacts, unreadByPhone, peerData)
+                2 -> ChatTab(prefs, active, unreadByPhone, peerData)
                 3 -> ContactsTab(
                     prefs = prefs,
                     contacts = contacts,

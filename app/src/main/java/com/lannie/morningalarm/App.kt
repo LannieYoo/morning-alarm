@@ -11,13 +11,22 @@ class App : Application() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
 
-        // 알람 채널: 소리는 TTS가 직접 재생하므로 채널 소리는 끔
+        // 알람 채널: 목소리는 TTS가 직접 재생하지만, 채널이 완전 무음이면 안드로이드가 "조용한 알림"으로 취급해
+        // 전체 화면(RingActivity)을 띄우지 않는다. 그래서 무음 파일을 소리로 걸고 진동을 켜 긴급 채널과 같은 등급으로 만든다.
+        nm.deleteNotificationChannel("alarm")
+        val silence = Uri.parse("android.resource://$packageName/${R.raw.silence}")
+        val alarmAttrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
         nm.createNotificationChannel(
             NotificationChannel(CH_ALARM, "알람", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "가족이 보낸 알람"
-                setSound(null, null)
-                enableVibration(false)
+                description = "가족이 보낸 알람 (전체 화면)"
+                setSound(silence, alarmAttrs)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300)
                 setBypassDnd(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
         )
         nm.createNotificationChannel(
@@ -51,7 +60,7 @@ class App : Application() {
     }
 
     companion object {
-        const val CH_ALARM = "alarm"
+        const val CH_ALARM = "alarm_v2"
         const val CH_URGENT = "urgent"
         const val CH_CHAT = "chat_v2"
         const val CH_SVC = "svc"
