@@ -114,13 +114,25 @@ fun ContactsTab(
                         }
                     }
                     if (showAvatars) {
-                        Spacer(Modifier.height(10.dp))
-                        AvatarPicker(options = Avatars.ALL, selected = avatar) { picked ->
+                        fun pick(picked: String) {
                             avatar = picked
                             prefs.myAvatar = picked
                             runCatching { Repo.updateProfile(prefs.myPhone, prefs.myName, picked) }
                             showAvatars = false
                         }
+                        Spacer(Modifier.height(10.dp))
+                        Text("가족", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.Muted)
+                        Spacer(Modifier.height(6.dp))
+                        AvatarPicker(
+                            options = Avatars.FAMILY.map { it.first },
+                            selected = avatar,
+                            labels = Avatars.FAMILY.toMap(),
+                            onPick = ::pick
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text("기타", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.Muted)
+                        Spacer(Modifier.height(6.dp))
+                        AvatarPicker(options = Avatars.OTHERS, selected = avatar, onPick = ::pick)
                     }
                 }
             }
