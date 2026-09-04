@@ -80,6 +80,8 @@ fun ContactsTab(
     var showQuietEditor by remember { mutableStateOf(false) }
     var avatar by remember { mutableStateOf(prefs.myAvatar) }
     var showAvatars by remember { mutableStateOf(false) }
+    var myName by remember { mutableStateOf(prefs.myName) }
+    var editName by remember { mutableStateOf(false) }
     var disconnectTarget by remember { mutableStateOf<Contact?>(null) }
     var hidden by remember { mutableStateOf(prefs.hiddenPhones()) }
 
@@ -148,11 +150,37 @@ fun ContactsTab(
                         Avatar(avatar, size = 56.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(prefs.myName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
+                            if (editName) {
+                                OutlinedTextField(
+                                    value = myName,
+                                    onValueChange = { myName = it },
+                                    singleLine = true,
+                                    placeholder = { Text("이름 또는 애칭") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Text(myName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
+                            }
                             Text(prefs.myPhone, fontSize = 12.sp, color = Palette.Muted)
                         }
-                        TextButton(onClick = { showAvatars = !showAvatars }) {
-                            Text(if (showAvatars) "닫기" else "아이콘 바꾸기", color = Palette.Orange, fontSize = 12.sp)
+                        if (editName) {
+                            TextButton(onClick = {
+                                val n = myName.trim()
+                                if (n.isNotBlank()) {
+                                    prefs.myName = n
+                                    myName = n
+                                    // 상대 폰 연락처·대화방에 바로 반영 (users 문서)
+                                    runCatching { Repo.updateProfile(prefs.myPhone, n, prefs.myAvatar) }
+                                }
+                                editName = false
+                            }) { Text("저장", color = Palette.Orange, fontSize = 12.sp) }
+                        } else {
+                            TextButton(onClick = {
+                                editName = true
+                            }) { Text("이름", color = Palette.Orange, fontSize = 12.sp) }
+                            TextButton(onClick = { showAvatars = !showAvatars }) {
+                                Text(if (showAvatars) "닫기" else "아이콘", color = Palette.Orange, fontSize = 12.sp)
+                            }
                         }
                     }
                     if (showAvatars) {
@@ -252,20 +280,8 @@ fun ContactsTab(
                                 Text(name, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
                                 Text(c.phone, fontSize = 12.sp, color = Palette.Muted)
                             }
-                            when {
-                                h == null -> Pill("상태 없음", Palette.Surface2, Palette.Muted)
-                                missing.isEmpty() -> Pill("준비 완료", Palette.TealDim, Palette.Teal)
-                                else -> Pill("상대 연결 설정", Palette.DangerDim, Palette.Danger)
-                            }
-                        }
-                        if (missing.isNotEmpty()) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "⚠️ $name 님 폰에서: [연결] 메뉴 → 연결 설정 → 해결 버튼 클릭\n(" +
-                                    missing.joinToString(" · ") + ")",
-                                fontSize = 12.sp,
-                                color = Palette.Danger
-                            )
+                            // 상대 폰 설정은 상대가 자기 폰에서 하는 것이므로 여기서는 경고하지 않는다
+                            if (h != null && missing.isEmpty()) Pill("준비 완료", Palette.TealDim, Palette.Teal)
                         }
                         if (rules.isNotEmpty()) {
                             Spacer(Modifier.height(8.dp))

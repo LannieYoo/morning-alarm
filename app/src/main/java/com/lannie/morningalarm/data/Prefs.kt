@@ -91,6 +91,11 @@ class Prefs(context: Context) {
         sp.edit().putString("recentQuestions", gson.toJson(merged)).apply()
     }
 
+    fun removeRecentQuestion(q: Question) {
+        val left = getRecentQuestions().filter { it.q.trim() != q.q.trim() }
+        sp.edit().putString("recentQuestions", gson.toJson(left)).apply()
+    }
+
     // ---- 오늘 하루 그만 울리기 플래그 ----
 
     fun stopForToday(alarmId: String) {

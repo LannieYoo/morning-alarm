@@ -71,6 +71,12 @@ class AlarmReceiver : BroadcastReceiver() {
             AlarmScheduler.scheduleAt(context, alarmId, next, ringIndex + 1)
         }
 
+        // 보낸 사람 이름은 최신 연락처 이름을 우선 (이름을 바꿨을 수 있음). 나에게 보낸 알람이면 "나"
+        val ownerName = when {
+            alarm.ownerPhone == prefs.myPhone -> "나"
+            prefs.contactName(alarm.ownerPhone) != alarm.ownerPhone -> prefs.contactName(alarm.ownerPhone)
+            else -> alarm.ownerName
+        }
         RingPlayerService.start(
             context,
             alarmId = alarm.id,
@@ -78,7 +84,7 @@ class AlarmReceiver : BroadcastReceiver() {
             ringIndex = ringIndex,
             type = RingPlayerService.TYPE_ALARM,
             ownerPhone = alarm.ownerPhone,
-            ownerName = alarm.ownerName,
+            ownerName = ownerName,
             soundMode = alarm.soundMode
         )
     }

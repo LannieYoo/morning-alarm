@@ -20,6 +20,9 @@
 - **보낸 사람 알림**: `Repo.listenEventChanges(owner)`(첫 스냅샷 제외, documentChanges) → SyncService가 정답/확인/일단 끔/취소/거절을 알림 (eventId+state로 1회)
 - **알람 수정 감지**: SyncService가 `Prefs.alarmVersion`(updatedAt)과 비교해 바뀐 알람은 cancelAll + clearStopped → 당일 이미 울렸어도 새 시각에 다시 울림 (버그 수정 2026-09-04)
 - **TTS 통일(`alarm/Tts.kt`)**: Google TTS 설치돼 있으면 그 엔진, 속도 0.95·pitch 1.0 고정, 오프라인 한국어 최고 품질 voice 선택 (기기마다 목소리가 달랐던 문제)
+- **받을 사람 선택(RecipientPicker)**: 알람/즉시 알람 편집 맨 위, 연결된 사람 + "나"(본인 번호) 카드 중 **한 명만**, 새 알람은 기본 선택 없음(필수). 수정 시 잠김. 나에게 보낸 알람은 같은 기기의 SyncService가 받아 울림
+- **시간 입력**: material3 `TimePicker`(is24Hour=false, 오전/오후 다이얼) → `timeState.hour/minute`(0~23). 표시는 `ampm()`
+- **이름 변경**: 연결 탭 프로필에서 이름/아이콘 변경 → `Repo.updateProfile`(users 문서). Home이 peerData(users)의 name을 연락처 이름에 덮어써 상대 폰에 바로 반영. 연결 탭은 **내 설정만** 경고하고 상대 설정은 경고하지 않음(준비 완료 알약만)
 - **문장 선택형**: `util/Korean.kt` `alarmPresets(name)` (아/야 자동) + 기타 직접 입력. 즉시 알람(Kind.INSTANT_ALARM)도 같은 선택기
 - **기록 탭**: events를 alarmId+날짜(표시 시간대)로 묶어 요약(N회 울림→k회차 종료, 반응 초, 정답 틀린 횟수 `wrongAnswers`), 취소는 빨간 카드. 테스트/즉시는 건별
 - **메시지 탭**: 연락처 목록(마지막 메시지·안 읽음) → 대화방. `Repo.listenAllMessages`(from/to 두 쿼리 합침). 긴급은 체크박스+확인 다이얼로그 → `UrgentActivity` 깜빡임, 소리는 폰 ringerMode 따름(소리→낭독+진동, 진동→진동, 무음→화면만)

@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,12 +68,21 @@ fun Home(prefs: Prefs) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    var rawContacts by remember { mutableStateOf(listOf<Contact>()) }
     DisposableEffect(Unit) {
-        val reg = Repo.listenContacts(prefs.myPhone) { list ->
-            contacts = list
-            prefs.saveContacts(list)
-        }
+        val reg = Repo.listenContacts(prefs.myPhone) { list -> rawContacts = list }
         onDispose { reg.remove() }
+    }
+    // 상대가 이름을 바꾸면 users/{phone}.name이 바뀌므로 그 이름을 우선 사용 (연락처·대화방에 바로 반영)
+    val named = rawContacts.map { c ->
+        val live = (peerData[c.phone]?.get("name") as? String)?.trim().orEmpty()
+        if (live.isNotBlank()) c.copy(name = live) else c
+    }
+    LaunchedEffect(named) {
+        if (named != contacts) {
+            contacts = named
+            prefs.saveContacts(named)
+        }
     }
     DisposableEffect(Unit) {
         val reg = Repo.listenPairRequestsTo(prefs.myPhone) { incoming = it }

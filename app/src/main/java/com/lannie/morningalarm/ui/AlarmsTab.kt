@@ -2,6 +2,7 @@
 
 package com.lannie.morningalarm.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -29,6 +29,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -39,10 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lannie.morningalarm.data.Alarm
@@ -79,6 +79,7 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
     }
 
     fun rulesOf(phone: String): List<QuietRule> = Repo.parseQuietRules(peerData[phone])
+    fun nameOf(phone: String): String = if (phone == prefs.myPhone) "나" else contactLabel(contacts, phone)
 
     if (showEditor) {
         // 최근 질문: 내가 저장했던 질문 + 지금 살아 있는 내 알람의 질문 (중복 제거, 최대 10개)
@@ -87,10 +88,13 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
             .distinctBy { it.q.trim() }
             .take(10)
         AlarmEditor(
+            prefs = prefs,
             initial = editing ?: Alarm(ownerPhone = prefs.myPhone, ownerName = prefs.myName),
             contacts = contacts,
+            peerData = peerData,
             rulesOf = ::rulesOf,
             recent = recent,
+            onRemoveRecent = { q -> prefs.removeRecentQuestion(q) },
             onSave = { alarm ->
                 runCatching { Repo.saveAlarm(alarm) }
                 prefs.addRecentQuestions(alarm.questions)
@@ -104,6 +108,7 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
         InstantAlarmScreen(
             prefs = prefs,
             contacts = contacts,
+            peerData = peerData,
             rulesOf = ::rulesOf,
             onSent = { name ->
                 info = "⚡ $name 에게 지금 알람을 보냈어요"
@@ -118,7 +123,6 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
         ScreenTitle("알람") {
             OutlinedButton(
                 onClick = { showInstant = true },
-                enabled = contacts.isNotEmpty(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.Teal)
             ) { Text("⚡ 지금", fontWeight = FontWeight.Bold) }
             Spacer(Modifier.width(8.dp))
@@ -126,8 +130,7 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
                 onClick = {
                     editing = null
                     showEditor = true
-                },
-                enabled = contacts.isNotEmpty()
+                }
             ) { Text("＋ 만들기", fontWeight = FontWeight.Bold) }
         }
         if (info.isNotBlank()) {
@@ -140,7 +143,8 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
         }
 
         when {
-            contacts.isEmpty() -> EmptyState("👥", "먼저 연결하세요", "[연결] 탭에서 번호로 요청", art = { AlarmClockArt() })
+            contacts.isEmpty() && sent.isEmpty() && received.isEmpty() ->
+                EmptyState("👥", "먼저 연결하세요", "[연결] 탭에서 번호로 요청 · 나에게 보내는 알람은 바로 가능", art = { AlarmClockArt() })
             sent.isEmpty() && received.isEmpty() ->
                 EmptyState("⏰", "알람이 없어요", "＋ 만들기로 예약하거나 ⚡ 지금 바로 보내요", art = { AlarmClockArt() })
             else -> LazyColumn(
@@ -158,7 +162,7 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
                         )
                         SentAlarmCard(
                             alarm = alarm,
-                            targetName = contactLabel(contacts, alarm.targetPhone),
+                            targetName = nameOf(alarm.targetPhone),
                             conflicts = conflicts,
                             onToggle = { on -> runCatching { Repo.saveAlarm(alarm.copy(enabled = on)) } },
                             onEdit = {
@@ -405,15 +409,16 @@ fun conflictText(targetName: String, alarmDays: List<Int>, conflicts: Map<Int, Q
 private fun InstantAlarmScreen(
     prefs: Prefs,
     contacts: List<Contact>,
+    peerData: Map<String, Map<String, Any>>,
     rulesOf: (String) -> List<QuietRule>,
     onSent: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    var target by remember { mutableStateOf(contacts.firstOrNull { it.active }?.phone ?: "") }
+    var target by remember { mutableStateOf("") }
     var soundMode by remember { mutableStateOf(SoundMode.FORCE) }
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
-    val targetName = contactLabel(contacts, target)
+    val targetName = if (target == prefs.myPhone) "나" else contactLabel(contacts, target)
     val quietNow = Quiet.find(rulesOf(target), ZonedDateTime.now())
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -421,21 +426,21 @@ private fun InstantAlarmScreen(
             TextButton(onClick = onCancel) { Text("취소", color = Palette.Muted) }
         }
         Column(Modifier.padding(horizontal = 16.dp)) {
-            Text("예약 없이 상대 폰에서 바로 울려요", fontSize = 13.sp, color = Palette.Muted)
+            Text("예약 없이 선택한 사람 폰에서 바로 울려요", fontSize = 13.sp, color = Palette.Muted)
+
+            SectionHeader("받을 사람 · 한 명만 선택")
+            RecipientPicker(
+                prefs = prefs,
+                contacts = contacts,
+                peerData = peerData,
+                selected = target,
+                locked = false,
+                onSelect = { target = it }
+            )
 
             SectionHeader("울림 방식")
             SoundModePicker(mode = soundMode, onChange = { soundMode = it })
 
-            SectionHeader("누구에게")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                contacts.filter { it.active }.forEach { c ->
-                    FilterChip(
-                        selected = c.phone == target,
-                        onClick = { target = c.phone },
-                        label = { Text(c.name.ifBlank { c.phone }) }
-                    )
-                }
-            }
             if (quietNow != null) {
                 Spacer(Modifier.height(10.dp))
                 Card(
@@ -491,25 +496,23 @@ private fun InstantAlarmScreen(
 
 @Composable
 private fun AlarmEditor(
+    prefs: Prefs,
     initial: Alarm,
     contacts: List<Contact>,
+    peerData: Map<String, Map<String, Any>>,
     rulesOf: (String) -> List<QuietRule>,
     recent: List<Question>,
+    onRemoveRecent: (Question) -> Unit,
     onSave: (Alarm) -> Unit,
     onCancel: () -> Unit
 ) {
     var showRecent by remember { mutableStateOf(false) }
-    var target by remember {
-        mutableStateOf(
-            initial.targetPhone.ifBlank {
-                contacts.firstOrNull { it.active }?.phone
-                    ?: ""
-            }
-        )
-    }
+    // 새 알람은 받을 사람을 반드시 직접 고른다 (기본 선택 없음)
+    var target by remember { mutableStateOf(initial.targetPhone) }
     var soundMode by remember { mutableStateOf(initial.soundMode.ifBlank { SoundMode.FORCE }) }
-    var hourText by remember { mutableStateOf(two(initial.hour)) }
-    var minuteText by remember { mutableStateOf(two(initial.minute)) }
+    // 오전/오후 다이얼 (내부 값은 0~23시)
+    val timeState =
+        rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = false)
     var text by remember { mutableStateOf(initial.text) }
     var days by remember { mutableStateOf(initial.days.toSet()) }
     var repeatCount by remember { mutableStateOf(initial.repeatCount.toFloat()) }
@@ -517,15 +520,11 @@ private fun AlarmEditor(
     val questions = remember { mutableStateListOf<Question>().apply { addAll(initial.questions) } }
     var error by remember { mutableStateOf("") }
 
-    val targetName = contactLabel(contacts, target)
-    val h = hourText.toIntOrNull()
-    val m = minuteText.toIntOrNull()
-    // 시간을 입력하는 즉시 상대의 거절 시간과 비교
-    val conflicts = if (h != null && m != null && h in 0..23 && m in 0..59) {
-        Quiet.conflicts(rulesOf(target), days.toList(), h, m)
-    } else {
-        emptyMap()
-    }
+    val targetName = if (target == prefs.myPhone) "나" else contactLabel(contacts, target)
+    val h = timeState.hour
+    val m = timeState.minute
+    // 시간을 고르는 즉시 상대의 거절 시간과 비교
+    val conflicts = if (target.isNotBlank()) Quiet.conflicts(rulesOf(target), days.toList(), h, m) else emptyMap()
     val totalDays = if (days.isEmpty()) 7 else days.size
     val fullyBlocked = conflicts.isNotEmpty() && conflicts.size >= totalDays
 
@@ -534,39 +533,51 @@ private fun AlarmEditor(
             TextButton(onClick = onCancel) { Text("취소", color = Palette.Muted) }
         }
         Column(Modifier.padding(horizontal = 16.dp)) {
-            // 시간 (큰 디지털 표시)
+            // 1) 받을 사람 (선택한 한 사람에게만 간다)
+            SectionHeader("받을 사람 · 한 명만 선택")
+            RecipientPicker(
+                prefs = prefs,
+                contacts = contacts,
+                peerData = peerData,
+                selected = target,
+                locked = initial.id.isNotBlank(),
+                onSelect = { target = it }
+            )
+            Spacer(Modifier.height(10.dp))
+
+            // 2) 시간 (오전/오후 다이얼)
+            SectionHeader("시간")
             AppCard {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TimeField(hourText, "시") { hourText = it }
-                        Text(
-                            ":",
-                            fontSize = 44.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Palette.Orange,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                    TimePicker(
+                        state = timeState,
+                        colors = TimePickerDefaults.colors(
+                            clockDialColor = Palette.Surface2,
+                            selectorColor = Palette.Orange,
+                            clockDialSelectedContentColor = Palette.Bg,
+                            clockDialUnselectedContentColor = Palette.Text,
+                            periodSelectorSelectedContainerColor = Palette.Orange,
+                            periodSelectorSelectedContentColor = Palette.Bg,
+                            periodSelectorUnselectedContentColor = Palette.Muted,
+                            timeSelectorSelectedContainerColor = Palette.OrangeDim,
+                            timeSelectorSelectedContentColor = Palette.Orange,
+                            timeSelectorUnselectedContainerColor = Palette.Surface2,
+                            timeSelectorUnselectedContentColor = Palette.Text
                         )
-                        TimeField(minuteText, "분") { minuteText = it }
-                    }
-                    Text("받는 사람 폰 시간 · 24시간제", fontSize = 11.sp, color = Palette.Muted)
+                    )
+                    Text(
+                        "${ampm(h, m)} · 받는 사람 폰 시간 기준",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Palette.Orange
+                    )
                 }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(4.dp))
 
             SectionHeader("울림 방식")
             SoundModePicker(mode = soundMode, onChange = { soundMode = it })
 
-            SectionHeader("누구에게")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                contacts.filter { it.active }.forEach { c ->
-                    FilterChip(
-                        selected = c.phone == target,
-                        onClick = { if (initial.id.isBlank()) target = c.phone },
-                        enabled = initial.id.isBlank() || c.phone == target,
-                        label = { Text(c.name.ifBlank { c.phone }) }
-                    )
-                }
-            }
             val targetRules = rulesOf(target)
             if (targetRules.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
@@ -615,7 +626,7 @@ private fun AlarmEditor(
             Spacer(Modifier.height(6.dp))
             if (recent.isNotEmpty()) {
                 OutlinedButton(onClick = { showRecent = !showRecent }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (showRecent) "최근 질문 닫기" else "🕘 최근 질문 보기 (${recent.size})")
+                    Text(if (showRecent) "기존 질문 닫기" else "📚 기존 질문 선택 (${recent.size})")
                 }
                 if (showRecent) {
                     Spacer(Modifier.height(6.dp))
@@ -645,6 +656,9 @@ private fun AlarmEditor(
                                         color = if (already) Palette.Muted else Palette.Orange
                                     )
                                 }
+                                TextButton(onClick = {
+                                    onRemoveRecent(r)
+                                }) { Text("삭제", color = Palette.Danger, fontSize = 12.sp) }
                             }
                         }
                     }
@@ -709,8 +723,6 @@ private fun AlarmEditor(
                 onClick = {
                     when {
                         target.isBlank() -> error = "받을 사람을 선택하세요"
-                        h == null || h !in 0..23 -> error = "시는 0~23"
-                        m == null || m !in 0..59 -> error = "분은 0~59"
                         text.isBlank() -> error = "읽어줄 말을 입력하세요"
                         questions.any { it.q.isNotBlank() && it.answers().isEmpty() } -> error = "정답이 빈 질문이 있어요"
                         fullyBlocked -> error = "${targetName}의 거절 시간이에요. 시간이나 요일을 바꿔 주세요"
@@ -837,20 +849,65 @@ private fun SoundModeOption(
     }
 }
 
+/** "오후 7:00" 형식 */
+fun ampm(h: Int, m: Int): String {
+    val period = if (h < 12) "오전" else "오후"
+    val h12 = when (h % 12) {
+        0 -> 12
+        else -> h % 12
+    }
+    return "$period $h12:${two(m)}"
+}
+
+/** 받을 사람 선택: 연결된 사람 + 나. 선택한 한 명에게만 알람이 간다. */
 @Composable
-private fun TimeField(value: String, label: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.filter { c -> c.isDigit() }.take(2)) },
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        textStyle = TextStyle(
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Bold,
-            color = Palette.Text,
-            textAlign = TextAlign.Center
-        ),
-        modifier = Modifier.width(110.dp),
-        singleLine = true
-    )
+private fun RecipientPicker(
+    prefs: Prefs,
+    contacts: List<Contact>,
+    peerData: Map<String, Map<String, Any>>,
+    selected: String,
+    locked: Boolean,
+    onSelect: (String) -> Unit
+) {
+    val options = contacts.filter { it.active }
+        .map { Triple(it.phone, it.name.ifBlank { it.phone }, Repo.avatarOf(peerData[it.phone])) } +
+        Triple(prefs.myPhone, "나 (${prefs.myName})", prefs.myAvatar)
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { (phone, name, avatar) ->
+            val sel = phone == selected
+            Card(
+                onClick = { if (!locked) onSelect(phone) },
+                enabled = !locked || sel,
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (sel) Palette.Orange else Palette.Surface,
+                    disabledContainerColor = if (sel) Palette.Orange else Palette.Surface
+                )
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Avatar(avatar, size = 40.dp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        name,
+                        color = if (sel) Palette.Bg else Palette.Text,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+    }
+    if (selected.isBlank()) {
+        Spacer(Modifier.height(4.dp))
+        Text("👆 받을 사람을 선택하세요", color = Palette.Danger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+    } else if (locked) {
+        Spacer(Modifier.height(4.dp))
+        Text("받을 사람은 만들 때 정해져요 · 바꾸려면 새 알람을 만드세요", color = Palette.Muted, fontSize = 11.sp)
+    }
 }
