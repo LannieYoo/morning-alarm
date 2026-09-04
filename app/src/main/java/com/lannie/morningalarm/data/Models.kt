@@ -1,7 +1,10 @@
 package com.lannie.morningalarm.data
 
-/** 그만 울리기용 질문/정답 쌍 (최대 10개) */
-data class Question(var q: String = "", var a: String = "")
+/** 그만 울리기용 질문 (최대 10개). 정답은 최대 3개, 하나만 맞아도 정답 (예: 1 / 일 / 하나) */
+data class Question(var q: String = "", var a: String = "", var a2: String = "", var a3: String = "") {
+    /** 비어 있지 않은 정답들 */
+    fun answers(): List<String> = listOf(a, a2, a3).map { it.trim() }.filter { it.isNotEmpty() }
+}
 
 /** 연결된 상대 (연락처). 전화번호가 ID. */
 data class Contact(var phone: String = "", var name: String = "")

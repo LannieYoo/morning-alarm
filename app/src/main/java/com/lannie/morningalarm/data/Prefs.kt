@@ -65,6 +65,18 @@ class Prefs(context: Context) {
 
     fun getQuietRules(): List<QuietRule> = readList("quietRules", object : TypeToken<List<QuietRule>>() {})
 
+    // ---- 최근 사용한 질문 (알람 저장할 때 누적, 최대 10개) ----
+
+    fun getRecentQuestions(): List<Question> = readList("recentQuestions", object : TypeToken<List<Question>>() {})
+
+    fun addRecentQuestions(list: List<Question>) {
+        val merged = (list + getRecentQuestions())
+            .filter { it.q.isNotBlank() }
+            .distinctBy { it.q.trim() }
+            .take(10)
+        sp.edit().putString("recentQuestions", gson.toJson(merged)).apply()
+    }
+
     // ---- 오늘 하루 그만 울리기 플래그 ----
 
     fun stopForToday(alarmId: String) {

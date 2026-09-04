@@ -8,3 +8,6 @@ fun normalizeAnswer(s: String): String = s.trim().lowercase().replace(" ", "")
 
 fun answersMatch(input: String, expected: String): Boolean =
     normalizeAnswer(expected).isNotEmpty() && normalizeAnswer(input) == normalizeAnswer(expected)
+
+/** 여러 정답 중 하나만 맞아도 정답 */
+fun anyAnswerMatches(input: String, expected: List<String>): Boolean = expected.any { answersMatch(input, it) }

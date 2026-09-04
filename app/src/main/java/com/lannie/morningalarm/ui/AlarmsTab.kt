@@ -78,12 +78,19 @@ fun AlarmsTab(prefs: Prefs, contacts: List<Contact>, peerData: Map<String, Map<S
     fun rulesOf(phone: String): List<QuietRule> = Repo.parseQuietRules(peerData[phone])
 
     if (showEditor) {
+        // 최근 질문: 내가 저장했던 질문 + 지금 살아 있는 내 알람의 질문 (중복 제거, 최대 10개)
+        val recent = (prefs.getRecentQuestions() + sent.flatMap { it.questions })
+            .filter { it.q.isNotBlank() }
+            .distinctBy { it.q.trim() }
+            .take(10)
         AlarmEditor(
             initial = editing ?: Alarm(ownerPhone = prefs.myPhone, ownerName = prefs.myName),
             contacts = contacts,
             rulesOf = ::rulesOf,
+            recent = recent,
             onSave = { alarm ->
                 runCatching { Repo.saveAlarm(alarm) }
+                prefs.addRecentQuestions(alarm.questions)
                 showEditor = false
             },
             onCancel = { showEditor = false }
@@ -377,9 +384,11 @@ private fun AlarmEditor(
     initial: Alarm,
     contacts: List<Contact>,
     rulesOf: (String) -> List<QuietRule>,
+    recent: List<Question>,
     onSave: (Alarm) -> Unit,
     onCancel: () -> Unit
 ) {
+    var showRecent by remember { mutableStateOf(false) }
     var target by remember { mutableStateOf(initial.targetPhone.ifBlank { contacts.firstOrNull()?.phone ?: "" }) }
     var soundMode by remember { mutableStateOf(initial.soundMode.ifBlank { SoundMode.FORCE }) }
     var hourText by remember { mutableStateOf(two(initial.hour)) }
@@ -487,6 +496,44 @@ private fun AlarmEditor(
             SectionHeader("끄기 질문 · 최대 10개")
             Text("정답을 맞혀야 그날 알람이 꺼져요", fontSize = 12.sp, color = Palette.Muted)
             Spacer(Modifier.height(6.dp))
+            if (recent.isNotEmpty()) {
+                OutlinedButton(onClick = { showRecent = !showRecent }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (showRecent) "최근 질문 닫기" else "🕘 최근 질문 보기 (${recent.size})")
+                }
+                if (showRecent) {
+                    Spacer(Modifier.height(6.dp))
+                    recent.forEach { r ->
+                        val already = questions.any { it.q.trim() == r.q.trim() }
+                        AppCard(Modifier.padding(vertical = 3.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        "Q. ${r.q}",
+                                        fontSize = 13.sp,
+                                        color = Palette.Text,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        "A. ${r.answers().joinToString(" / ")}",
+                                        fontSize = 12.sp,
+                                        color = Palette.Muted
+                                    )
+                                }
+                                TextButton(
+                                    onClick = { if (!already && questions.size < 10) questions.add(r.copy()) },
+                                    enabled = !already && questions.size < 10
+                                ) {
+                                    Text(
+                                        if (already) "추가됨" else "추가",
+                                        color = if (already) Palette.Muted else Palette.Orange
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+            }
             questions.forEachIndexed { i, q ->
                 AppCard(Modifier.padding(vertical = 4.dp)) {
                     Column {
@@ -498,14 +545,34 @@ private fun AlarmEditor(
                             singleLine = true
                         )
                         Spacer(Modifier.height(6.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("정답 · 하나만 맞아도 정답 (예: 1 / 일 / 하나)", fontSize = 11.sp, color = Palette.Muted)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             OutlinedTextField(
                                 value = q.a,
                                 onValueChange = { questions[i] = q.copy(a = it) },
-                                label = { Text("정답") },
+                                label = { Text("정답 1") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
                             )
+                            OutlinedTextField(
+                                value = q.a2,
+                                onValueChange = { questions[i] = q.copy(a2 = it) },
+                                label = { Text("정답 2") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = q.a3,
+                                onValueChange = { questions[i] = q.copy(a3 = it) },
+                                label = { Text("정답 3") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             TextButton(onClick = { questions.removeAt(i) }) { Text("삭제", color = Palette.Danger) }
                         }
                     }
@@ -528,7 +595,7 @@ private fun AlarmEditor(
                         h == null || h !in 0..23 -> error = "시는 0~23"
                         m == null || m !in 0..59 -> error = "분은 0~59"
                         text.isBlank() -> error = "읽어줄 말을 입력하세요"
-                        questions.any { it.q.isNotBlank() && it.a.isBlank() } -> error = "정답이 빈 질문이 있어요"
+                        questions.any { it.q.isNotBlank() && it.answers().isEmpty() } -> error = "정답이 빈 질문이 있어요"
                         fullyBlocked -> error = "${targetName}의 거절 시간이에요. 시간이나 요일을 바꿔 주세요"
                         else -> onSave(
                             initial.copy(

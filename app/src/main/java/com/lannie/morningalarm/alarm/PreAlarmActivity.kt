@@ -44,7 +44,7 @@ import com.lannie.morningalarm.data.Repo
 import com.lannie.morningalarm.ui.MorningTheme
 import com.lannie.morningalarm.ui.Palette
 import com.lannie.morningalarm.ui.Pill
-import com.lannie.morningalarm.util.answersMatch
+import com.lannie.morningalarm.util.anyAnswerMatches
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -208,7 +208,7 @@ class PreAlarmActivity : ComponentActivity() {
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = {
-                                if (answersMatch(answer, questions[qIndex].a)) {
+                                if (anyAnswerMatches(answer, questions[qIndex].answers())) {
                                     cancelAlarm()
                                 } else {
                                     wrong = true
