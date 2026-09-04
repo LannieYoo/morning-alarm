@@ -172,8 +172,8 @@ fun ContactsTab(
 
             // ---- 내 폰 설정 (부족한 게 있으면 맨 위에) ----
             if (!health.allOk) {
-                SectionHeader("⚠️ 내 폰 설정 필요")
-                Text("알람이 제대로 울리려면 아래 항목의 '해결'을 눌러 켜 주세요", fontSize = 12.sp, color = Palette.Danger)
+                SectionHeader("⚠️ 연결 설정")
+                Text("각 항목의 '해결' 버튼을 클릭해 켜 주세요", fontSize = 12.sp, color = Palette.Danger)
                 Spacer(Modifier.height(6.dp))
                 HealthCard(health, onRefreshHealth)
             }
@@ -235,14 +235,14 @@ fun ContactsTab(
                             when {
                                 h == null -> Pill("상태 없음", Palette.Surface2, Palette.Muted)
                                 missing.isEmpty() -> Pill("준비 완료", Palette.TealDim, Palette.Teal)
-                                else -> Pill("상대 설정 필요", Palette.DangerDim, Palette.Danger)
+                                else -> Pill("상대 연결 설정", Palette.DangerDim, Palette.Danger)
                             }
                         }
                         if (missing.isNotEmpty()) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "⚠️ $name 님 폰에서 켜야 할 설정: " + missing.joinToString(" · ") +
-                                    "\n(이 폰에서는 할 수 없어요 · $name 님 앱 [연결] 탭 맨 위에서 '해결')",
+                                "⚠️ $name 님 폰에서: [연결] 메뉴 → 연결 설정 → 해결 버튼 클릭\n(" +
+                                    missing.joinToString(" · ") + ")",
                                 fontSize = 12.sp,
                                 color = Palette.Danger
                             )

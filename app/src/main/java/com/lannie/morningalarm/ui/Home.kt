@@ -97,7 +97,7 @@ fun Home(prefs: Prefs) {
         Spacer(Modifier.height(4.dp))
         // 연결 탭에서는 페이지 안에서 직접 해결하므로 배너를 띄우지 않는다
         if (tab != 3) {
-            if (!health.allOk) WarnBanner("⚠️ 내 폰 설정 필요: " + health.missing.joinToString(" · ")) { tab = 3 }
+            if (!health.allOk) WarnBanner("⚠️ 알람 설정: [연결] 메뉴 → 연결 설정 → 해결 버튼 클릭") { tab = 3 }
             if (incomingPhones.isNotEmpty()) WarnBanner("📨 연결 요청 ${incomingPhones.size}건") { tab = 3 }
         }
 
