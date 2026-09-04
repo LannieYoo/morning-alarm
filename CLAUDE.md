@@ -11,7 +11,7 @@
 - **무음 뚫기**: `STREAM_ALARM` + TTS(`USAGE_ALARM`), 울릴 때 알람 볼륨 강제 최대(종료 시 복원). 무음·진동·통화 중에도 스피커로 남
 - **울림 방식(`SoundMode`)**: 알람/즉시 알람마다 보내는 쪽이 선택. `force`(무조건 소리, **기본·강조**) / `follow`(폰 설정 따름: 소리 모드→현재 볼륨 낭독+진동, 진동 모드→진동만, 무음→화면만). `RingPlayerService`가 ringerMode로 판정
 - **반복 울림**: `repeatCount`회, `intervalMin`분 간격. `AlarmReceiver`가 다음 회차를 미리 예약하고, 질문 정답 시 `cancelRepeats` + 당일 정지 플래그(`stopped_{alarmId}` = 날짜)
-- **그만 울리기**: 질문(최대 10개) 정답을 맞혀야 당일 종료. 오답이면 다음 질문 순환. 정답 비교는 trim+소문자+공백제거
+- **그만 울리기**: 질문(최대 10개) 정답을 맞혀야 당일 종료. 질문마다 정답 최대 3개(`Question.a/a2/a3`, `answers()`), 하나만 맞아도 정답(`anyAnswerMatches`). 오답이면 다음 질문 순환. 정답 비교는 trim+소문자+공백제거. 편집 화면 "최근 질문 보기"는 `Prefs.recentQuestions`(저장 시 누적, 로컬) + 현재 내 알람 질문을 합쳐 최대 10개
 - **긴급 팝업**: `Message.kind = urgent` → `UrgentActivity` 빨강 풀스크린 + 진동 + 1회 낭독
 - **수신확인**: Message.deliveredAt(서비스가 기록)/readAt(확인 시). 알람은 events 컬렉션(firedAt/dismissedAt/answered/stoppedForDay)
 - **5분 전 예고(PreAlarmActivity)**: `AlarmScheduler`가 첫 회차와 함께 ringIndex=-1(PRE_INDEX) 예고를 예약. 깜빡이는 화면에서 "이번 알람 취소"(질문 있으면 정답 필수) → 오늘 종료 + `scheduleNextOccurrence(afterMillis=triggerAt)` + events에 `cancelled=true, firedAt=알람 시각`. 꺼짐/오늘 종료/거절 시간 예정이면 예고 안 함
