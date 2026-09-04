@@ -13,6 +13,12 @@
 - **그만 울리기**: 질문(최대 10개) 정답을 맞혀야 당일 종료. 오답이면 다음 질문 순환. 정답 비교는 trim+소문자+공백제거
 - **긴급 팝업**: `Message.kind = urgent` → `UrgentActivity` 빨강 풀스크린 + 진동 + 1회 낭독
 - **수신확인**: Message.deliveredAt(서비스가 기록)/readAt(확인 시). 알람은 events 컬렉션(firedAt/dismissedAt/answered/stoppedForDay)
+- **5분 전 예고(PreAlarmActivity)**: `AlarmScheduler`가 첫 회차와 함께 ringIndex=-1(PRE_INDEX) 예고를 예약. 깜빡이는 화면에서 "이번 알람 취소"(질문 있으면 정답 필수) → 오늘 종료 + `scheduleNextOccurrence(afterMillis=triggerAt)` + events에 `cancelled=true, firedAt=알람 시각`. 꺼짐/오늘 종료/거절 시간 예정이면 예고 안 함
+- **회차 규칙**: 마지막 회차(ringIndex+1 >= repeatCount)는 일단 끄기 없음, 질문 있으면 정답 입력창이 바로 뜸. 이전 회차는 일단 끄기(정답 불필요)/오늘 끝(정답 필요)
+- **보낸 사람 알림**: `Repo.listenEventChanges(owner)`(첫 스냅샷 제외, documentChanges) → SyncService가 정답/확인/일단 끔/취소/거절을 알림 (eventId+state로 1회)
+- **알람 수정 감지**: SyncService가 `Prefs.alarmVersion`(updatedAt)과 비교해 바뀐 알람은 cancelAll + clearStopped → 당일 이미 울렸어도 새 시각에 다시 울림 (버그 수정 2026-09-04)
+- **TTS 통일(`alarm/Tts.kt`)**: Google TTS 설치돼 있으면 그 엔진, 속도 0.95·pitch 1.0 고정, 오프라인 한국어 최고 품질 voice 선택 (기기마다 목소리가 달랐던 문제)
+- **문장 선택형**: `util/Korean.kt` `alarmPresets(name)` (아/야 자동) + 기타 직접 입력. 즉시 알람(Kind.INSTANT_ALARM)도 같은 선택기
 - **받은 알람은 조회 전용**: 알람 삭제·수정은 보낸 사람만. 알람/기록/울림 화면에 보낸 사람 이름(`ownerName`) 표시
 - **표시 시간대**: 기본 Asia/Seoul, 상태 탭에서 기기 시간대로 전환(`TzState`)
 
