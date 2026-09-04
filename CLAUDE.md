@@ -24,7 +24,8 @@
 - **기록 탭**: events를 alarmId+날짜(표시 시간대)로 묶어 요약(N회 울림→k회차 종료, 반응 초, 정답 틀린 횟수 `wrongAnswers`), 취소는 빨간 카드. 테스트/즉시는 건별
 - **메시지 탭**: 연락처 목록(마지막 메시지·안 읽음) → 대화방. `Repo.listenAllMessages`(from/to 두 쿼리 합침). 긴급은 체크박스+확인 다이얼로그 → `UrgentActivity` 깜빡임, 소리는 폰 ringerMode 따름(소리→낭독+진동, 진동→진동, 무음→화면만)
 - **프로필 아이콘**: `Avatars.ALL` 이모지 30개, `Prefs.myAvatar` + `users/{me}.avatar`(`Repo.updateProfile`), 상대 아이콘은 peerData(users 문서)에서
-- **받은 알람은 조회 전용**: 알람 삭제·수정은 보낸 사람만. 알람/기록/울림 화면에 보낸 사람 이름(`ownerName`) 표시
+- **받은 알람**: 수정·삭제는 보낸 사람만. 받는 사람은 **끄기**만 가능(질문 있으면 정답 필수) → `Alarm.cancelledByTarget/cancelledAt`(`isLive()`=enabled && !cancelledByTarget), events에 `cancelledAlarm=true` → 보낸 쪽 알림·회색 '🚫 수신인 끔' 카드·🔁 다시 보내기(`Repo.resendAlarm` = 취소 해제 + updatedAt 갱신). 기록 카드는 삭제 가능(`Repo.deleteEvents`)
+- **연결 끊기**: 확인 다이얼로그 → `Repo.disconnect`(대화 메시지 삭제 포함) + 내 쪽은 `hiddenPhones`로 즉시 목록에서 삭제, 상대 쪽만 회색 '연결 해제됨'
 - **표시 시간대**: 기본 Asia/Seoul, 상태 탭에서 기기 시간대로 전환(`TzState`)
 
 ## 공개 저장소 주의
