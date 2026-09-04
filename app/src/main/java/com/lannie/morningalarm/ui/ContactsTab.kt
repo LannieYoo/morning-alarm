@@ -84,7 +84,8 @@ fun ContactsTab(
             title = { Text("정말 연결을 끊을까요?", color = Palette.Text, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "끊으면 ${c.name.ifBlank { c.phone }} 님과 알람과 메시지를 주고받을 수 없어요.\n" +
+                    "끊으면 ${c.name.ifBlank { c.phone }} 님과 알람과 메시지를 주고받을 수 없고, " +
+                        "지금까지 주고받은 메시지도 모두 삭제돼요.\n" +
                         "내 목록에서 삭제되고, 상대 화면에는 '연결 해제됨'으로 표시돼요.",
                     color = Palette.Muted
                 )

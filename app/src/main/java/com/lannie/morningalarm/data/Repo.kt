@@ -191,8 +191,17 @@ object Repo {
         }
     }
 
-    /** 연결 끊기: 두 사람 사이의 accepted 문서를 모두 disconnected로 (양쪽 화면에 반영) */
+    /** 두 사람이 주고받은 메시지 전부 삭제 (연결 끊을 때) */
+    fun deleteConversation(me: String, peer: String) {
+        db.collection("messages").whereEqualTo("fromPhone", me).whereEqualTo("toPhone", peer).get()
+            .addOnSuccessListener { s -> s.documents.forEach { it.reference.delete() } }
+        db.collection("messages").whereEqualTo("fromPhone", peer).whereEqualTo("toPhone", me).get()
+            .addOnSuccessListener { s -> s.documents.forEach { it.reference.delete() } }
+    }
+
+    /** 연결 끊기: 두 사람 사이의 accepted 문서를 모두 disconnected로 (양쪽 화면에 반영) + 대화 삭제 */
     fun disconnect(me: String, peer: String) {
+        deleteConversation(me, peer)
         val patch = mapOf("status" to "disconnected", "disconnectedBy" to me)
         db.collection("pairRequests").whereEqualTo("fromPhone", me).whereEqualTo("toPhone", peer).get()
             .addOnSuccessListener { s ->
