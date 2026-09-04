@@ -218,6 +218,35 @@ fun ChatBubbleArt(size: Dp = 160.dp) {
     }
 }
 
+/** 프로필 아이콘 (이모지, 동그란 배경) */
+@Composable
+fun Avatar(emoji: String, size: Dp = 44.dp, selected: Boolean = false) {
+    Box(
+        Modifier
+            .size(size)
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) Palette.Orange else Palette.Surface2),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(emoji, fontSize = (size.value * 0.5f).sp)
+    }
+}
+
+/** 아이콘 고르기 격자 (6열) */
+@Composable
+fun AvatarPicker(options: List<String>, selected: String, onPick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.chunked(6).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                row.forEach { e ->
+                    Box(Modifier.clickable { onPick(e) }) { Avatar(e, size = 46.dp, selected = e == selected) }
+                }
+                repeat(6 - row.size) { Spacer(Modifier.size(46.dp)) }
+            }
+        }
+    }
+}
+
 /** 상단 경고 배너 */
 @Composable
 fun WarnBanner(text: String, onClick: () -> Unit = {}) {

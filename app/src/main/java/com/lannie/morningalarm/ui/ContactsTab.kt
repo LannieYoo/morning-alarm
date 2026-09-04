@@ -35,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lannie.morningalarm.alarm.RingPlayerService
+import com.lannie.morningalarm.data.Avatars
 import com.lannie.morningalarm.data.Contact
 import com.lannie.morningalarm.data.Kind
 import com.lannie.morningalarm.data.PairRequest
@@ -66,6 +67,8 @@ fun ContactsTab(
     var testInfo by remember { mutableStateOf("") }
     var quietRules by remember { mutableStateOf(prefs.getQuietRules()) }
     var showQuietEditor by remember { mutableStateOf(false) }
+    var avatar by remember { mutableStateOf(prefs.myAvatar) }
+    var showAvatars by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         val reg = Repo.listenPairRequestsFrom(prefs.myPhone) { outgoing = it }
@@ -94,10 +97,34 @@ fun ContactsTab(
     val outgoingPhones = outgoing.map { it.toPhone }.distinct().filter { p -> contacts.none { it.phone == p } }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("연결") {
-            Text("${prefs.myName} · ${prefs.myPhone}", fontSize = 12.sp, color = Palette.Muted)
-        }
+        ScreenTitle("연결")
         Column(Modifier.padding(horizontal = 16.dp)) {
+            // ---- 내 프로필 ----
+            AppCard {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(avatar, size = 56.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(prefs.myName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.Text)
+                            Text(prefs.myPhone, fontSize = 12.sp, color = Palette.Muted)
+                        }
+                        TextButton(onClick = { showAvatars = !showAvatars }) {
+                            Text(if (showAvatars) "닫기" else "아이콘 바꾸기", color = Palette.Orange, fontSize = 12.sp)
+                        }
+                    }
+                    if (showAvatars) {
+                        Spacer(Modifier.height(10.dp))
+                        AvatarPicker(options = Avatars.ALL, selected = avatar) { picked ->
+                            avatar = picked
+                            prefs.myAvatar = picked
+                            runCatching { Repo.updateProfile(prefs.myPhone, prefs.myName, picked) }
+                            showAvatars = false
+                        }
+                    }
+                }
+            }
+
             // ---- 받은 요청 ----
             if (incomingByPhone.isNotEmpty()) {
                 SectionHeader("받은 요청", incomingByPhone.size)
@@ -143,6 +170,8 @@ fun ContactsTab(
                 AppCard(Modifier.padding(bottom = 8.dp)) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Avatar(Repo.avatarOf(data), size = 44.dp)
+                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     c.name.ifBlank {

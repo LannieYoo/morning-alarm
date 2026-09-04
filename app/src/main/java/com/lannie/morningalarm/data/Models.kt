@@ -68,8 +68,20 @@ data class AlarmEvent(
     /** 거절 사유 표시용 (예: "수업시간 · 월~금 09:00~15:00") */
     var rejectReason: String = "",
     /** 받는 사람이 5분 전 예고에서 취소함 (firedAt = 원래 알람 시각) */
-    var cancelled: Boolean = false
+    var cancelled: Boolean = false,
+    /** 정답을 맞히기 전까지 틀린 횟수 */
+    var wrongAnswers: Int = 0
 )
+
+/** 프로필 아이콘 후보 (실물 사진 대신 심플한 이모지) */
+object Avatars {
+    val ALL = listOf(
+        "😀", "😎", "🥰", "🤗", "😴", "🐻", "🐱", "🐶", "🦊", "🐼", "🐰", "🐯",
+        "🦁", "🐸", "🐥", "🦋", "🌻", "🌙", "⭐", "🍀", "🍎", "🌈", "☕", "🎧",
+        "🎈", "🚀", "⚽", "🎵", "💡", "❤️"
+    )
+    const val DEFAULT = "😀"
+}
 
 /** 채팅/긴급팝업/테스트 메시지 */
 data class Message(

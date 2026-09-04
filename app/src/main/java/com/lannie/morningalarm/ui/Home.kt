@@ -101,7 +101,7 @@ fun Home(prefs: Prefs) {
             when (tab) {
                 0 -> AlarmsTab(prefs, contacts, peerData)
                 1 -> LogTab(prefs)
-                2 -> ChatTab(prefs, contacts, unreadByPhone)
+                2 -> ChatTab(prefs, contacts, unreadByPhone, peerData)
                 3 -> ContactsTab(
                     prefs = prefs,
                     contacts = contacts,

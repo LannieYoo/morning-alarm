@@ -93,6 +93,7 @@ class PreAlarmActivity : ComponentActivity() {
                 }
                 var answer by remember { mutableStateOf("") }
                 var wrong by remember { mutableStateOf(false) }
+                var wrongCount by remember { mutableStateOf(0) }
                 var remainSec by remember {
                     mutableStateOf(((triggerAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0))
                 }
@@ -137,7 +138,8 @@ class PreAlarmActivity : ComponentActivity() {
                                 dismissedAt = System.currentTimeMillis(),
                                 answered = questions.isNotEmpty(),
                                 stoppedForDay = true,
-                                cancelled = true
+                                cancelled = true,
+                                wrongAnswers = wrongCount
                             )
                         )
                     }
@@ -210,6 +212,7 @@ class PreAlarmActivity : ComponentActivity() {
                                     cancelAlarm()
                                 } else {
                                     wrong = true
+                                    wrongCount++
                                     qIndex = (qIndex + 1) % questions.size
                                     answer = ""
                                 }

@@ -89,6 +89,7 @@ class RingActivity : ComponentActivity() {
                 }
                 var answer by remember { mutableStateOf("") }
                 var wrong by remember { mutableStateOf(false) }
+                var wrongCount by remember { mutableStateOf(0) }
 
                 // 시계 + 남은 울림 시간 링
                 var now by remember { mutableStateOf(LocalTime.now()) }
@@ -111,7 +112,8 @@ class RingActivity : ComponentActivity() {
                                 mapOf(
                                     "dismissedAt" to System.currentTimeMillis(),
                                     "answered" to correct,
-                                    "stoppedForDay" to stopped
+                                    "stoppedForDay" to stopped,
+                                    "wrongAnswers" to wrongCount
                                 )
                             )
                         }
@@ -245,6 +247,7 @@ class RingActivity : ComponentActivity() {
                                         stopForDay()
                                     } else {
                                         wrong = true
+                                        wrongCount++
                                         qIndex = (qIndex + 1) % questions.size
                                         answer = ""
                                     }

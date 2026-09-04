@@ -125,7 +125,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         val prefs = Prefs(context)
                         prefs.myName = name.trim()
                         prefs.myPhone = normalizePhone(myCc, myPhone)
-                        Repo.upsertUser(prefs.myPhone, mapOf("phone" to prefs.myPhone, "name" to prefs.myName))
+                        Repo.updateProfile(prefs.myPhone, prefs.myName, prefs.myAvatar)
                         if (peerPhone.isNotBlank()) {
                             val peer = normalizePhone(peerCc, peerPhone)
                             if (peer != prefs.myPhone) Repo.sendPairRequest(prefs.myPhone, prefs.myName, peer)

@@ -46,6 +46,15 @@ object Repo {
         db.collection("users").document(phone).set(mapOf("quietRules" to list), SetOptions.merge())
     }
 
+    /** 프로필(이름·아이콘) 업로드 — 상대 화면의 연락처/대화방에 표시 */
+    fun updateProfile(phone: String, name: String, avatar: String) {
+        db.collection("users").document(phone)
+            .set(mapOf("phone" to phone, "name" to name, "avatar" to avatar), SetOptions.merge())
+    }
+
+    fun avatarOf(data: Map<String, Any>?): String =
+        (data?.get("avatar") as? String)?.ifBlank { null } ?: Avatars.DEFAULT
+
     fun listenUser(phone: String, onChange: (Map<String, Any>?) -> Unit): ListenerRegistration =
         db.collection("users").document(phone).addSnapshotListener { s, _ ->
             onChange(s?.data)
@@ -317,6 +326,29 @@ object Repo {
                     onChange(s.documents.mapNotNull { d -> d.toObject(Message::class.java)?.apply { id = d.id } })
                 }
             }
+
+    /** 내가 주고받은 모든 메시지 (대화 목록의 마지막 메시지·안 읽음 계산용). 보낸 것/받은 것을 합친다 */
+    fun listenAllMessages(me: String, onChange: (List<Message>) -> Unit): ListenerRegistration {
+        var sent: List<Message> = emptyList()
+        var received: List<Message> = emptyList()
+        fun emit() = onChange((sent + received).distinctBy { it.id }.sortedBy { it.sentAt })
+        val a = db.collection("messages").whereEqualTo("fromPhone", me).addSnapshotListener { s, _ ->
+            if (s != null) {
+                sent = s.documents.mapNotNull { d -> d.toObject(Message::class.java)?.apply { id = d.id } }
+                emit()
+            }
+        }
+        val b = db.collection("messages").whereEqualTo("toPhone", me).addSnapshotListener { s, _ ->
+            if (s != null) {
+                received = s.documents.mapNotNull { d -> d.toObject(Message::class.java)?.apply { id = d.id } }
+                emit()
+            }
+        }
+        return ListenerRegistration {
+            a.remove()
+            b.remove()
+        }
+    }
 
     /** 나에게 온, 아직 안 읽은 메시지 (하단 메뉴 배지용). 테스트 알람은 제외 */
     fun listenUnread(me: String, onChange: (List<Message>) -> Unit): ListenerRegistration = db.collection("messages")

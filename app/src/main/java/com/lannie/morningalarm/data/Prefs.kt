@@ -23,6 +23,11 @@ class Prefs(context: Context) {
         get() = sp.getString("myPhone", "") ?: ""
         set(v) = sp.edit().putString("myPhone", v).apply()
 
+    /** 내 프로필 아이콘 (이모지) */
+    var myAvatar: String
+        get() = (sp.getString("myAvatar", "") ?: "").ifBlank { Avatars.DEFAULT }
+        set(v) = sp.edit().putString("myAvatar", v).apply()
+
     /** 표시 시간대: Asia/Seoul(기본) 또는 "local"(기기 시간대) */
     var displayTz: String
         get() = sp.getString("displayTz", "Asia/Seoul") ?: "Asia/Seoul"

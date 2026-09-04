@@ -278,6 +278,7 @@ class SyncService : Service() {
         if (prefs.myPhone.isBlank()) return
         runCatching { Repo.updateHealth(prefs.myPhone, Health.check(this).toMap()) }
         runCatching { Repo.updateQuietRules(prefs.myPhone, prefs.getQuietRules()) }
+        runCatching { Repo.updateProfile(prefs.myPhone, prefs.myName, prefs.myAvatar) }
     }
 
     private fun startForegroundQuiet() {
